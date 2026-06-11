@@ -1,17 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-/**
- * Validate a redirect target is a safe local relative path.
- * Must start with a single "/", must NOT start with "//", must NOT contain "://".
- */
-function isSafeLocalPath(next: string): boolean {
-  return (
-    next.startsWith("/") &&
-    !next.startsWith("//") &&
-    !next.includes("://")
-  );
-}
+import { isSafeLocalPath } from "@/lib/safe-path";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

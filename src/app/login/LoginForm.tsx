@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { loginAction } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string | null }) {
   const [state, formAction, pending] = useActionState(loginAction, null);
 
   return (
@@ -26,6 +26,8 @@ export function LoginForm() {
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
+          {/* Hidden field forwards the safe next path through form submission */}
+          {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}

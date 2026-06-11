@@ -9,8 +9,10 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
+import { getUser, getProfile } from "@/lib/auth";
 import Link from "next/link";
 import { AnswerInput } from "./AnswerInput";
+import { KeepButton } from "./KeepButton";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +48,7 @@ async function mintSignedUrl(storagePath: string): Promise<string | null> {
 
 export default async function LetterPage({ params }: PageProps) {
   const { handle, receiver, letter: letterParam } = await params;
+  const letterPath = `/${handle}/${receiver}/${letterParam}`;
 
   // ── Fetch the letter by URL triple (server-side Drizzle, bypasses RLS) ────
   //
@@ -112,12 +115,23 @@ export default async function LetterPage({ params }: PageProps) {
       );
       const validUrls = signedUrls.filter((u): u is string => u !== null);
 
+      // Determine auth state for the keep-flow UI (server-side, no body leakage)
+      const [graceUser, graceProfile] = await Promise.all([
+        getUser(),
+        getProfile(),
+      ]);
+      const isLoggedIn = graceUser !== null;
+      const hasProfile = graceProfile !== null;
+
       return (
         <UnsealedView
           body={row.body}
           imageUrls={validUrls}
           letterId={row.id}
           expiresAt={row.expiresAt!}
+          isLoggedIn={isLoggedIn}
+          hasProfile={hasProfile}
+          letterPath={letterPath}
         />
       );
     }
@@ -217,11 +231,17 @@ function UnsealedView({
   imageUrls,
   letterId,
   expiresAt,
+  isLoggedIn,
+  hasProfile,
+  letterPath,
 }: {
   body: string;
   imageUrls: string[];
   letterId: string;
   expiresAt: Date;
+  isLoggedIn: boolean;
+  hasProfile: boolean;
+  letterPath: string;
 }) {
   const expiresFormatted = expiresAt.toLocaleString("en-US", {
     month: "short",
@@ -278,26 +298,44 @@ function UnsealedView({
             )}
           </div>
 
-          {/* Expiry + save notice */}
-          <div className="border-t border-neutral-100 bg-amber-50 px-6 py-4">
+          {/* Expiry + save notice — keep-flow branching */}
+          <div className="border-t border-neutral-100 bg-amber-50 px-6 py-4 flex flex-col gap-3">
             <p className="text-sm text-amber-800">
               This letter will vanish on <strong>{expiresFormatted}</strong>.{" "}
-              <Link
-                href="/login"
-                className="underline hover:text-amber-900 font-medium"
-              >
-                Log in to keep it
-              </Link>{" "}
-              —{" "}
-              <span
-                data-letter-id={letterId}
-                data-phase="6-placeholder"
-                className="text-amber-700 text-xs"
-              >
-                {/* Phase 6 will wire the save action here */}
-              </span>
-              saving it to your account makes it permanent.
+              Saving it to your account makes it permanent.
             </p>
+
+            {/* Branch 1: logged in + has profile → show the Keep button */}
+            {isLoggedIn && hasProfile && (
+              <KeepButton letterId={letterId} letterPath={letterPath} />
+            )}
+
+            {/* Branch 2: logged in but no profile → must complete onboarding first */}
+            {isLoggedIn && !hasProfile && (
+              <p className="text-sm text-amber-800">
+                You need a handle before you can keep letters.{" "}
+                <Link
+                  href="/onboarding"
+                  className="underline font-medium hover:text-amber-900"
+                >
+                  Complete onboarding
+                </Link>
+                , then return here and click &ldquo;Keep this letter.&rdquo;
+              </p>
+            )}
+
+            {/* Branch 3: not logged in → link to login with next= so they return here */}
+            {!isLoggedIn && (
+              <p className="text-sm text-amber-800">
+                <Link
+                  href={`/login?next=${encodeURIComponent(letterPath)}`}
+                  className="underline font-medium hover:text-amber-900"
+                >
+                  Log in to keep it
+                </Link>{" "}
+                — your progress is preserved while you sign in.
+              </p>
+            )}
           </div>
         </div>
       </div>
