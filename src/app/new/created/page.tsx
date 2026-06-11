@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import {
@@ -78,12 +79,12 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
           </div>
 
           <div className="text-center">
-            <a
+            <Link
               href="/new"
               className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
               Write another letter
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>

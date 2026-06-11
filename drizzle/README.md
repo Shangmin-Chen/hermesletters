@@ -8,6 +8,8 @@ paste each file into the Supabase SQL editor in the numbered order below.
 |-------|------|--------------|----------|
 | 1 | `0000_public_the_fallen.sql` | drizzle-kit | Creates `letter_status` enum; creates `profiles`, `letters`, `letter_images` tables; adds FKs between app tables; adds the `letter_images_letter_id_idx` and `letters_saved_by_idx` indexes; adds the named unique constraint `letters_url_unique` on `(sender_handle, receiver_name, letter_name)`. |
 | 2 | `0001_rls_storage.sql` | hand-authored (custom, journal-tracked) | Adds `profiles → auth.users` FK (references Supabase-owned schema, not modelable by drizzle-kit); enables RLS on all three app tables; installs RLS policies (see below); creates the private `letters` storage bucket. |
+| 3 | `0002_shocking_mantis.sql` | drizzle-kit | Creates `letter_verify_attempts` table (id uuid PK, letter_id uuid FK→letters cascade, created_at timestamptz); adds `letter_verify_attempts_letter_id_created_at_idx` composite index on `(letter_id, created_at)` for efficient windowed counts. |
+| 4 | `0003_verify_attempts_rls.sql` | hand-authored (custom, journal-tracked) | Enables RLS on `letter_verify_attempts` with **no permissive client policy** (default-deny). All access is exclusively server-side via Drizzle using the service role (bypasses RLS). Purpose: durable per-letter verify rate limiting — the server uses this table to cap total guess attempts per letter within a rolling window, regardless of spoofed IPs or multiple server instances. Consistent with the `letter_images` RLS pattern. |
 
 ## RLS policy summary
 
