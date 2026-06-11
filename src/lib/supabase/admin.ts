@@ -2,9 +2,11 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Service-role Supabase client for server-only use.
+ * Secret-key Supabase client for server-only use.
  *
- * This client bypasses RLS and must NEVER be imported by client components.
+ * Uses the Supabase **secret API key** (`sb_secret_...`, the replacement for the
+ * deprecated service_role key). It bypasses RLS and must NEVER be imported by
+ * client components.
  * Used for:
  *   - Uploading images to the private "letters" storage bucket
  *   - Any future service-role storage operations (signed URL minting, etc.)
@@ -22,7 +24,7 @@ function getAdminClient(): SupabaseClient {
   if (!_adminClient) {
     _adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.SUPABASE_SECRET_KEY!,
       {
         auth: {
           autoRefreshToken: false,
