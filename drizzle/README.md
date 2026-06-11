@@ -34,6 +34,73 @@ paste each file into the Supabase SQL editor in the numbered order below.
 - Access is exclusively server-side: the service role uploads objects; the server mints time-limited signed URLs for reads.
 - **No `storage.objects` RLS policies are created.** The service role bypasses RLS, and attempting `ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY` on hosted Supabase fails ("must be owner"). Client-direct access to the bucket is not needed or desired.
 
+## Scheduled expiry job (Phase 7)
+
+### What it does
+
+`GET /api/cron/expire` (also accepts POST) is a secured route handler that runs on a schedule — hourly by default, configured via `vercel.json`.
+
+**It performs two operations:**
+
+1. **Flip expired letters** — marks past-due `opened` letters as `expired`:
+   ```sql
+   UPDATE letters
+   SET    status = 'expired'
+   WHERE  status = 'opened'
+     AND  saved_by IS NULL
+     AND  expires_at <= now();
+   ```
+
+2. **Prune stale rate-limit rows** — removes `letter_verify_attempts` rows older than 1 hour so the table cannot grow unbounded:
+   ```sql
+   DELETE FROM letter_verify_attempts
+   WHERE  created_at < now() - interval '1 hour';
+   ```
+
+**Data safety:** neither operation deletes `letters` rows or `letter_images` rows. Per the SPEC, expired letters retain their data — they are simply inaccessible to everyone.
+
+**Housekeeping only:** the locked page (`[handle]/[receiver]/[letter]/page.tsx`) and the verify route (`POST /api/letters/[id]/verify`) both contain read-time expiry guards that treat any letter with `expires_at <= now()` (and `saved_by IS NULL`) as expired regardless of its `status` column. The cron job keeps `status` consistent, but correctness is already guaranteed at read time.
+
+### Authorization
+
+The endpoint requires `Authorization: Bearer <CRON_SECRET>`. Set `CRON_SECRET` in your environment. Vercel Cron automatically sends this header when the env var is present.
+
+### pg_cron alternative (Supabase users)
+
+If you prefer to run the expiry logic entirely inside Postgres — eliminating the HTTP round-trip — you can use [pg_cron](https://supabase.com/docs/guides/database/extensions/pg_cron) (available as a Supabase extension):
+
+```sql
+-- Enable the extension (run once in the Supabase SQL editor)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Schedule the expiry UPDATE every hour
+SELECT cron.schedule(
+  'expire-opened-letters',   -- job name
+  '0 * * * *',               -- every hour
+  $$
+    UPDATE letters
+    SET    status = 'expired'
+    WHERE  status = 'opened'
+      AND  saved_by IS NULL
+      AND  expires_at <= now();
+  $$
+);
+
+-- Schedule the rate-limit table cleanup every hour
+SELECT cron.schedule(
+  'prune-verify-attempts',
+  '0 * * * *',
+  $$
+    DELETE FROM letter_verify_attempts
+    WHERE  created_at < now() - interval '1 hour';
+  $$
+);
+```
+
+With pg_cron you do not need the `/api/cron/expire` HTTP endpoint at all — both approaches achieve the same result.
+
+---
+
 ## saved_by lifecycle note (Phase 6)
 
 The `saved_by` column uses `ON DELETE SET NULL`.  If a receiver's profile is deleted, the letters row is left with `status = 'saved'` AND `saved_by = NULL`.  **Phase 6 read logic must treat that orphaned state as inaccessible** — never rely on `status` alone to gate access; always check that `saved_by` is non-NULL and matches the current user.
