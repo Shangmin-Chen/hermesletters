@@ -94,19 +94,29 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
   }
 
   const statusMessage: Record<Exclude<VerifyStatus, "idle" | "loading" | "unlocked">, string> = {
-    incorrect: "Not quite — try again.",
-    already_opened: "This letter has already been opened by someone else.",
-    expired: "This letter has expired.",
-    rate_limited: "Too many attempts. Please wait a moment and try again.",
+    incorrect: "Hmm, not it — no rush, give it another think.",
+    already_opened: "Someone's already opened this one.",
+    expired: "This letter has slipped away.",
+    rate_limited: "Let's slow down a moment — try again shortly.",
     error: "Something went wrong. Please try again.",
   };
+
+  const isErrorStatus =
+    status === "incorrect" || status === "error" || status === "rate_limited";
+
+  const isDisabled =
+    isPending ||
+    status === "loading" ||
+    status === "unlocked" ||
+    status === "already_opened" ||
+    status === "expired";
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
       {/* Visual underline slots derived from answer_shape */}
       <div
         aria-hidden="true"
-        className="flex flex-wrap gap-x-3 gap-y-1 mb-3 justify-center select-none"
+        className="flex flex-wrap gap-x-3 gap-y-1 mb-4 justify-center select-none"
       >
         {/* Render word-by-word so spaces create visible gaps */}
         {answerShape.split(" ").map((word, wi) => (
@@ -115,7 +125,7 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
               ch === "_" ? (
                 <span
                   key={ci}
-                  className="inline-block w-5 border-b-2 border-current opacity-60"
+                  className="inline-block w-5 border-b-2 border-wax/60"
                 />
               ) : null
             )}
@@ -129,50 +139,59 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
           ref={inputRef}
           type="text"
           aria-label="Your answer"
-          placeholder={`Answer (${totalChars} character${totalChars === 1 ? "" : "s"})`}
+          placeholder={`Your answer (${totalChars} character${totalChars === 1 ? "" : "s"})`}
           value={guess}
           onChange={(e) => {
             setGuess(e.target.value);
             if (status !== "idle") setStatus("idle");
           }}
-          disabled={
-            isPending ||
-            status === "loading" ||
-            status === "unlocked" ||
-            status === "already_opened" ||
-            status === "expired"
-          }
+          disabled={isDisabled}
           autoComplete="off"
           spellCheck={false}
-          className="w-full max-w-xs rounded-md border border-neutral-300 bg-white/80 px-3 py-2 text-center text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className={[
+            "w-full max-w-xs rounded-lg border bg-background px-4 py-2.5",
+            "text-center text-sm font-sans text-foreground placeholder:text-muted-foreground",
+            "shadow-sm transition-colors duration-150",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring",
+            isErrorStatus
+              ? "border-destructive/70 focus-visible:ring-destructive/50"
+              : "border-border",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          ].join(" ")}
         />
 
         {status !== "idle" && status !== "loading" && status !== "unlocked" && (
           <p
             role="alert"
-            className={`text-sm text-center ${
-              status === "incorrect" || status === "error" || status === "rate_limited"
-                ? "text-red-600"
-                : "text-neutral-600"
-            }`}
+            className={[
+              "text-sm text-center",
+              isErrorStatus ? "text-destructive" : "text-muted-foreground",
+            ].join(" ")}
           >
+            {isErrorStatus && (
+              <span aria-hidden="true" className="mr-1">✕</span>
+            )}
             {statusMessage[status]}
           </p>
         )}
 
         <button
           type="submit"
-          disabled={
-            !guess.trim() ||
-            isPending ||
-            status === "loading" ||
-            status === "unlocked" ||
-            status === "already_opened" ||
-            status === "expired"
-          }
-          className="rounded-md bg-neutral-800 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!guess.trim() || isDisabled}
+          className={[
+            "relative rounded-full px-6 py-2.5 text-sm font-medium font-sans",
+            "bg-primary text-primary-foreground shadow-sm",
+            "transition-all duration-150",
+            "hover:opacity-90 hover:shadow-md active:scale-[0.97]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
+          ].join(" ")}
         >
-          {status === "unlocked" ? "Unlocking…" : isPending || status === "loading" ? "Checking…" : "Unlock"}
+          {status === "unlocked"
+            ? "Opening…"
+            : isPending || status === "loading"
+            ? "One sec…"
+            : "Open it"}
         </button>
       </div>
     </form>

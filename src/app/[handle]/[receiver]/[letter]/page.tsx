@@ -11,6 +11,7 @@ import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 import { getUser, getProfile } from "@/lib/auth";
 import Link from "next/link";
+import { Envelope } from "@/components/brand/Envelope";
 import { AnswerInput } from "./AnswerInput";
 import { KeepButton } from "./KeepButton";
 
@@ -81,12 +82,12 @@ export default async function LetterPage({ params }: PageProps) {
   // 1. saved (opened and saved_by is set) — visible only in Received mail (Phase 6).
   //    Also treat status='saved' AND saved_by=NULL as orphaned → inaccessible.
   if (row.status === "saved") {
-    return <SealedView message="This letter has already been saved and is no longer viewable here." />;
+    return <SealedView message="This letter has found its home — it's been kept by whoever opened it." />;
   }
 
   // 2. expired by DB status or by read-time guard
   if (row.status === "expired" || isExpiredByTime) {
-    return <SealedView message="This letter has expired." />;
+    return <SealedView message="This letter has slipped away — its moment has passed." />;
   }
 
   // 3. opened (grace window still live) — check cookie
@@ -137,7 +138,7 @@ export default async function LetterPage({ params }: PageProps) {
     }
 
     // Cookie present but doesn't match, OR no cookie at all → sealed
-    return <SealedView message="This letter has already been opened." />;
+    return <SealedView message="This letter has already been opened — it found its person." />;
   }
 
   // 4. unopened — show the locked page (question + answer_shape only)
@@ -147,6 +148,8 @@ export default async function LetterPage({ params }: PageProps) {
         letterId={row.id}
         question={row.question}
         answerShape={row.answerShape}
+        senderHandle={row.senderHandle}
+        receiverName={receiver}
       />
     );
   }
@@ -165,52 +168,51 @@ function LockedView({
   letterId,
   question,
   answerShape,
+  senderHandle,
+  receiverName,
 }: {
   letterId: string;
   question: string;
   answerShape: string;
+  senderHandle: string;
+  receiverName: string;
 }) {
-  return (
-    <main className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
-      <div className="w-full max-w-md">
-        {/* Envelope shape */}
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
-          {/* Envelope flap */}
-          <div className="bg-neutral-100 border-b border-neutral-200 px-6 py-4 text-center">
-            <span className="text-2xl" role="img" aria-label="Letter">
-              ✉
-            </span>
-            <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wider font-medium">
-              Sealed Letter
-            </p>
-          </div>
+  // receiverName is a slug ("maya-lin"); render it back as words for the greeting.
+  const receiverDisplay = receiverName.replace(/-/g, " ");
 
-          {/* Lock area */}
-          <div className="px-6 py-8 flex flex-col items-center gap-6">
-            {/* Lock icon */}
-            <div className="rounded-full bg-neutral-100 p-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-neutral-600"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-md animate-rise-in">
+        {/* Card — stationery feel */}
+        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
+
+          {/* Header flap — envelope icon with wax-pulse + personal greeting */}
+          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
+            {/* Sealed envelope with wax-pulse breathing on the seal */}
+            <div className="animate-wax-pulse">
+              <Envelope state="sealed" className="w-20 h-20 text-ink" aria-hidden />
             </div>
 
-            {/* Security question */}
-            <div className="text-center">
-              <p className="text-xs text-neutral-500 uppercase tracking-wider font-medium mb-2">
-                Security Question
+            <div>
+              <h1 className="font-serif text-xl font-semibold text-foreground capitalize leading-snug">
+                {receiverDisplay}, you have a letter.
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                from{" "}
+                <span className="font-mono text-foreground/80">@{senderHandle}</span>
               </p>
-              <p className="text-base font-medium text-neutral-800">{question}</p>
+            </div>
+          </div>
+
+          {/* Body — the shared secret prompt */}
+          <div className="px-6 py-8 flex flex-col items-center gap-6">
+            <div className="text-center space-y-2">
+              <p className="text-xs text-wax uppercase tracking-widest font-medium">
+                Something only the two of you know
+              </p>
+              <p className="font-serif text-lg text-foreground leading-relaxed">
+                {question}
+              </p>
             </div>
 
             {/* Underline input (client component — only receives safe fields) */}
@@ -219,6 +221,11 @@ function LockedView({
             </div>
           </div>
         </div>
+
+        {/* Subtle footer hint */}
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          The letter opens once — for the person it was written to.
+        </p>
       </div>
     </main>
   );
@@ -253,56 +260,60 @@ function UnsealedView({
   });
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
+    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-xl">
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
-          {/* Open envelope top */}
-          <div className="bg-neutral-100 border-b border-neutral-200 px-6 py-4 text-center">
-            <span className="text-2xl" role="img" aria-label="Open letter">
-              📨
-            </span>
-            <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wider font-medium">
-              Your Letter
-            </p>
+        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden animate-rise-in">
+
+          {/* Open-envelope header — envelope in open state */}
+          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
+            <div style={{ perspective: "600px" }}>
+              <div className="animate-flap-open">
+                <Envelope state="open" className="w-20 h-20 text-ink" aria-hidden />
+              </div>
+            </div>
+            <div>
+              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug">
+                It&rsquo;s really you.
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Here&rsquo;s your letter.
+              </p>
+            </div>
           </div>
 
-          {/* Letter body */}
-          <div className="px-6 py-8">
+          {/* Letter body — unfolds in */}
+          <div className="px-6 py-8 animate-unfold">
             {/*
              * body is plain text; React escapes it by default.
-             * We split on newlines to preserve line breaks without
-             * dangerouslySetInnerHTML.
+             * whitespace-pre-wrap preserves newlines without split/map
+             * (which would inject double newlines).
              */}
-            <div className="text-neutral-800 text-base leading-relaxed whitespace-pre-wrap font-[var(--font-geist-sans)]">
-              {body.split("\n").map((line, i) => (
-                <span key={i}>
-                  {line}
-                  {"\n"}
-                </span>
-              ))}
+            <div className="font-serif text-foreground text-base leading-[1.85] tracking-[0.01em] whitespace-pre-wrap">
+              {body}
             </div>
 
             {/* Image gallery */}
             {imageUrls.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 animate-rise-in">
                 {imageUrls.map((url, i) => (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     key={i}
                     src={url}
                     alt={`Image ${i + 1}`}
-                    className="w-full rounded-lg border border-neutral-200 object-cover"
+                    className="w-full rounded-xl border border-border object-cover"
                   />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Expiry + save notice — keep-flow branching */}
-          <div className="border-t border-neutral-100 bg-amber-50 px-6 py-4 flex flex-col gap-3">
-            <p className="text-sm text-amber-800">
-              This letter will vanish on <strong>{expiresFormatted}</strong>.{" "}
-              Saving it to your account makes it permanent.
+          {/* Expiry + keep-flow footer */}
+          <div className="border-t border-border bg-muted/60 px-6 py-5 flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              This letter is yours until{" "}
+              <strong className="text-foreground">{expiresFormatted}</strong>.{" "}
+              Keep it, and it stays with you for good.
             </p>
 
             {/* Branch 1: logged in + has profile → show the Keep button */}
@@ -312,24 +323,24 @@ function UnsealedView({
 
             {/* Branch 2: logged in but no profile → must complete onboarding first */}
             {isLoggedIn && !hasProfile && (
-              <p className="text-sm text-amber-800">
+              <p className="text-sm text-muted-foreground">
                 You need a handle before you can keep letters.{" "}
                 <Link
                   href="/onboarding"
-                  className="underline font-medium hover:text-amber-900"
+                  className="underline font-medium text-foreground hover:text-wax transition-colors"
                 >
-                  Complete onboarding
+                  Finish setting up
                 </Link>
-                , then return here and click &ldquo;Keep this letter.&rdquo;
+                , then come back — your letter will be here.
               </p>
             )}
 
             {/* Branch 3: not logged in → link to login with next= so they return here */}
             {!isLoggedIn && (
-              <p className="text-sm text-amber-800">
+              <p className="text-sm text-muted-foreground">
                 <Link
                   href={`/login?next=${encodeURIComponent(letterPath)}`}
-                  className="underline font-medium hover:text-amber-900"
+                  className="underline font-medium text-foreground hover:text-wax transition-colors"
                 >
                   Log in to keep it
                 </Link>{" "}
@@ -347,21 +358,27 @@ function UnsealedView({
 
 function SealedView({ message }: { message: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
-          {/* Sealed envelope top */}
-          <div className="bg-neutral-100 border-b border-neutral-200 px-6 py-4 text-center">
-            <span className="text-2xl" role="img" aria-label="Sealed">
-              🔒
-            </span>
-            <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wider font-medium">
+    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-md animate-rise-in">
+        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
+          {/* Sealed header */}
+          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
+            <Envelope state="sealed" className="w-16 h-16 text-muted-foreground" aria-hidden />
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
               Sealed
             </p>
           </div>
 
-          <div className="px-6 py-10 text-center">
-            <p className="text-neutral-600 text-base">{message}</p>
+          <div className="px-6 py-10 text-center flex flex-col items-center gap-4">
+            <h1 className="font-serif text-base text-foreground leading-relaxed">
+              {message}
+            </h1>
+            <Link
+              href="/"
+              className="text-sm text-muted-foreground underline hover:text-foreground transition-colors min-h-[44px] inline-flex items-center justify-center"
+            >
+              Back home
+            </Link>
           </div>
         </div>
       </div>

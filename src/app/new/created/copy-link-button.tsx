@@ -16,7 +16,6 @@ export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback: select the text in the input
       const input = document.createElement("input");
       input.value = fullUrl;
       document.body.appendChild(input);
@@ -31,11 +30,16 @@ export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
   return (
     <Button
       onClick={handleCopy}
-      variant="outline"
-      className="w-full"
+      variant={copied ? "default" : "outline"}
+      className={
+        copied
+          ? "w-full bg-wax text-primary-foreground hover:opacity-90 transition-all rounded-full"
+          : "w-full border-border text-ink hover:bg-muted transition-all rounded-full"
+      }
       type="button"
+      aria-label={copied ? "Link copied to clipboard" : "Copy shareable link"}
     >
-      {copied ? "Copied!" : "Copy link"}
+      {copied ? "Copied to clipboard" : "Copy link"}
     </Button>
   );
 }

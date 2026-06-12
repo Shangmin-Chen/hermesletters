@@ -18,12 +18,8 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     null
   );
 
-  // Track receiver and letter name for live URL preview
   const receiverRef = useRef<HTMLInputElement>(null);
   const letterRef = useRef<HTMLInputElement>(null);
-
-  // We compute the preview URL live in a controlled way via useState-like approach.
-  // Since we need live updates, use a simple onInput approach.
 
   function getPreviewSlug(value: string): string {
     return slugify(value);
@@ -41,116 +37,176 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-8">
+      {/* Error banner */}
       {state?.error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+        >
           {state.error}
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="receiver_name">Receiver name</Label>
-        <Input
-          id="receiver_name"
-          name="receiver_name"
-          ref={receiverRef}
-          placeholder="e.g. Jane"
-          onInput={updatePreview}
-          required
-          disabled={isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          Who is this letter for? Will be slugified in the URL.
+      {/* ── Section: Who is this for? ── */}
+      <section className="space-y-5">
+        <h2 className="font-serif text-base font-semibold text-ink border-b border-border pb-2">
+          Who is this for?
+        </h2>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="receiver_name" className="text-sm font-medium text-foreground">
+            Their name
+          </Label>
+          <Input
+            id="receiver_name"
+            name="receiver_name"
+            ref={receiverRef}
+            placeholder="e.g. Jane"
+            onInput={updatePreview}
+            required
+            disabled={isPending}
+            className="focus-visible:ring-ring transition-shadow"
+            aria-describedby="receiver-hint"
+          />
+          <p id="receiver-hint" className="text-xs text-muted-foreground">
+            Just a first name is enough — this shapes their link.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="letter_name" className="text-sm font-medium text-foreground">
+            A name for this letter
+          </Label>
+          <Input
+            id="letter_name"
+            name="letter_name"
+            ref={letterRef}
+            placeholder="e.g. Summer 2025"
+            onInput={updatePreview}
+            required
+            disabled={isPending}
+            className="focus-visible:ring-ring transition-shadow"
+            aria-describedby="letter-name-hint"
+          />
+          <p id="letter-name-hint" className="text-xs text-muted-foreground">
+            Think of it as a subject line — just for the URL.
+          </p>
+        </div>
+
+        {/* Live URL preview */}
+        <div className="rounded-lg bg-muted/60 border border-border px-4 py-3 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Their link will be
+          </p>
+          <p
+            id="url-preview"
+            className="font-mono text-sm text-ink break-all"
+            aria-live="polite"
+            aria-label="Live URL preview"
+          >
+            /{senderHandle}/{"<receiver>"}{"/<letter>"}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Section: The letter ── */}
+      <section className="space-y-5">
+        <h2 className="font-serif text-base font-semibold text-ink border-b border-border pb-2">
+          The letter
+        </h2>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="body" className="text-sm font-medium text-foreground">
+            Write freely
+          </Label>
+          <Textarea
+            id="body"
+            name="body"
+            placeholder="Dear Jane,&#10;&#10;I wanted you to know…"
+            rows={9}
+            required
+            disabled={isPending}
+            className="resize-y focus-visible:ring-ring transition-shadow leading-relaxed"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="images" className="text-sm font-medium text-foreground">
+            Photos{" "}
+            <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="images"
+            name="images"
+            type="file"
+            multiple
+            accept="image/*"
+            disabled={isPending}
+            className="focus-visible:ring-ring file:text-sm file:font-medium file:text-foreground"
+            aria-describedby="images-hint"
+          />
+          <p id="images-hint" className="text-xs text-muted-foreground">
+            They appear below the letter once it&apos;s unlocked.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Section: The secret ── */}
+      <section className="space-y-5">
+        <h2 className="font-serif text-base font-semibold text-ink border-b border-border pb-2">
+          The secret
+        </h2>
+        <p className="text-sm text-muted-foreground -mt-2 leading-relaxed">
+          Only they can unlock this. Choose something only the two of you would know.
         </p>
-      </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="letter_name">Letter name</Label>
-        <Input
-          id="letter_name"
-          name="letter_name"
-          ref={letterRef}
-          placeholder="e.g. Summer 2025"
-          onInput={updatePreview}
-          required
-          disabled={isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          A short name for this letter. Will be slugified in the URL.
-        </p>
-      </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="question" className="text-sm font-medium text-foreground">
+            A question only they&apos;ll know
+          </Label>
+          <Input
+            id="question"
+            name="question"
+            placeholder="e.g. What did we name the stray cat?"
+            required
+            disabled={isPending}
+            className="focus-visible:ring-ring transition-shadow"
+            aria-describedby="question-hint"
+          />
+          <p id="question-hint" className="text-xs text-muted-foreground">
+            This is what they&apos;ll see on the locked page before they can read your letter.
+          </p>
+        </div>
 
-      {/* Live URL preview */}
-      <div className="rounded-md bg-muted px-4 py-3">
-        <p className="text-xs font-medium text-muted-foreground mb-1">Your letter URL will be:</p>
-        <p
-          id="url-preview"
-          className="font-mono text-sm break-all"
-        >
-          /{senderHandle}/{"<receiver>"}{"/<letter>"}
-        </p>
-      </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="answer" className="text-sm font-medium text-foreground">
+            The answer
+          </Label>
+          <Input
+            id="answer"
+            name="answer"
+            type="password"
+            placeholder="e.g. Biscuit"
+            required
+            disabled={isPending}
+            autoComplete="off"
+            className="focus-visible:ring-ring transition-shadow"
+            aria-describedby="answer-hint"
+          />
+          <p id="answer-hint" className="text-xs text-muted-foreground">
+            Not case-sensitive. They see the shape of the answer (length &amp; spaces) — not the letters.
+          </p>
+        </div>
+      </section>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="body">Letter body</Label>
-        <Textarea
-          id="body"
-          name="body"
-          placeholder="Write your letter here…"
-          rows={8}
-          required
-          disabled={isPending}
-          className="resize-y"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="question">Security question</Label>
-        <Input
-          id="question"
-          name="question"
-          placeholder="e.g. What was the name of our dog?"
-          required
-          disabled={isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          The receiver must answer this to unlock the letter.
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="answer">Answer</Label>
-        <Input
-          id="answer"
-          name="answer"
-          type="password"
-          placeholder="e.g. Biscuit"
-          required
-          disabled={isPending}
-          autoComplete="off"
-        />
-        <p className="text-xs text-muted-foreground">
-          Case-insensitive. The receiver sees only the length and spaces — not the answer itself.
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="images">Images (optional)</Label>
-        <Input
-          id="images"
-          name="images"
-          type="file"
-          multiple
-          accept="image/*"
-          disabled={isPending}
-        />
-        <p className="text-xs text-muted-foreground">
-          Attach one or more images. They appear below the letter body after the receiver unlocks it.
-        </p>
-      </div>
-
-      <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Sending…" : "Send letter"}
+      {/* Submit */}
+      <Button
+        type="submit"
+        className="w-full bg-wax text-primary-foreground hover:opacity-90 transition-opacity rounded-full py-2.5 text-sm font-medium shadow-sm"
+        disabled={isPending}
+      >
+        {isPending ? "Sealing your letter…" : "Seal & send"}
       </Button>
     </form>
   );

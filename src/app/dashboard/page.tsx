@@ -11,9 +11,10 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { Envelope } from "@/components/brand/Envelope";
 
 export const dynamic = "force-dynamic";
 
@@ -43,61 +44,113 @@ export default async function DashboardPage() {
     )
     .orderBy(desc(letters.savedAt));
 
+  const greeting = profile.display_name ?? `@${profile.handle}`;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6">
+    <main className="flex min-h-screen flex-col items-center justify-start bg-background p-4 pt-10 sm:p-6 sm:pt-14">
       <div className="w-full max-w-2xl space-y-6">
-        {/* Header card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dashboard</CardTitle>
-            <CardDescription>
-              Welcome back,{" "}
-              <span className="font-medium text-foreground">
-                {profile.display_name ?? profile.handle}
-              </span>
-              . Your handle is{" "}
-              <span className="font-mono font-medium text-foreground">
-                @{profile.handle}
-              </span>
-              .
+
+        {/* ── Header card ─────────────────────────────────────────────────── */}
+        <Card className="animate-rise-in overflow-hidden border-border bg-card shadow-sm">
+          {/* Warm top strip */}
+          <div className="bg-muted border-b border-border px-6 py-4 flex items-center justify-between gap-3">
+            <Wordmark size="sm" className="text-ink" />
+            <span className="text-xs text-muted-foreground font-mono">
+              @{profile.handle}
+            </span>
+          </div>
+
+          <CardHeader className="pb-2 pt-5">
+            <h1 className="font-serif text-2xl font-semibold text-foreground leading-snug">
+              Good to see you,{" "}
+              <span className="text-wax">{greeting}</span>.
+            </h1>
+            <CardDescription className="text-sm text-muted-foreground leading-relaxed">
+              Write something only one person will ever read — or revisit a
+              letter that&apos;s already yours.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Send mail CTA */}
+
+          <CardContent className="space-y-3 pb-6">
+            {/* Primary CTA */}
             <Link
               href="/new"
               className={cn(
                 buttonVariants({ variant: "default" }),
-                "w-full inline-flex justify-center"
+                "w-full inline-flex justify-center gap-2 bg-wax text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
+              <Envelope state="sealed" className="w-4 h-4 shrink-0" aria-hidden />
               Write a letter
             </Link>
+
+            {/* Secondary action */}
             <form action="/auth/signout" method="POST">
-              <Button type="submit" variant="outline" className="w-full">
+              <Button
+                type="submit"
+                variant="outline"
+                className="w-full border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+              >
                 Sign out
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Received mail */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Received mail</CardTitle>
-            <CardDescription>
-              Letters you&apos;ve saved during the grace window — yours permanently.
+        {/* ── Received mail ───────────────────────────────────────────────── */}
+        <Card
+          className="animate-rise-in overflow-hidden border-border bg-card shadow-sm"
+          style={{ animationDelay: "80ms" }}
+        >
+          <CardHeader className="pb-3">
+            <h2 className="font-serif text-lg font-semibold text-foreground">
+              Received mail
+            </h2>
+            <CardDescription className="text-sm text-muted-foreground">
+              Letters you&apos;ve kept — yours permanently.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="pt-0">
             {receivedLetters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No letters yet. When you keep a letter during its 24-hour grace
-                window, it will appear here.
-              </p>
+              /* ── Designed empty state ─────────────────────────────────── */
+              <div className="flex flex-col items-center gap-5 py-10 px-4 text-center">
+                {/* Illustrated open envelope */}
+                <div className="relative">
+                  <Envelope
+                    state="open"
+                    className="w-20 h-20 text-muted-foreground animate-rise-in"
+                    aria-hidden
+                  />
+                </div>
+
+                {/* Heading */}
+                <div className="space-y-1.5 max-w-xs">
+                  <h3 className="font-serif text-base font-semibold text-foreground leading-snug">
+                    Your mailbox is waiting
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    When someone sends you a letter and you keep it during the
+                    24-hour window, it lives here — safe and permanent.
+                  </p>
+                </div>
+
+                {/* Gentle nudge CTA */}
+                <p className="text-xs text-muted-foreground">
+                  Share your link so someone can write to you, or{" "}
+                  <Link
+                    href="/new"
+                    className="text-wax underline underline-offset-2 hover:text-wax/80 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
+                  >
+                    write a letter yourself
+                  </Link>
+                  .
+                </p>
+              </div>
             ) : (
-              <ul className="divide-y divide-border">
-                {receivedLetters.map((letter) => {
+              /* ── Letter list ──────────────────────────────────────────── */
+              <ul className="divide-y divide-border -mx-6 px-6">
+                {receivedLetters.map((letter, i) => {
                   const savedDate = letter.savedAt
                     ? new Date(letter.savedAt).toLocaleString("en-US", {
                         month: "short",
@@ -107,21 +160,45 @@ export default async function DashboardPage() {
                     : null;
 
                   return (
-                    <li key={letter.id} className="py-3">
+                    <li key={letter.id}>
                       <Link
                         href={`/dashboard/received/${letter.id}`}
-                        className="group flex flex-col gap-0.5 hover:underline"
+                        className={cn(
+                          "group flex items-start gap-3 py-3.5 rounded-sm",
+                          "hover:bg-muted/60 active:bg-muted transition-colors",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                          "-mx-2 px-2",
+                          "animate-rise-in"
+                        )}
+                        style={{ animationDelay: `${120 + i * 40}ms` }}
                       >
-                        <span className="font-medium text-foreground group-hover:underline">
-                          {letter.letterName}
+                        {/* Envelope icon */}
+                        <Envelope
+                          state="open"
+                          className="w-8 h-8 shrink-0 mt-0.5 text-wax/70 group-hover:text-wax transition-colors"
+                          aria-hidden
+                        />
+
+                        <span className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-serif font-semibold text-foreground text-sm leading-snug truncate group-hover:text-wax transition-colors">
+                            {letter.letterName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            From{" "}
+                            <span className="font-mono">@{letter.senderHandle}</span>
+                            {" · "}to {letter.receiverName}
+                            {savedDate && (
+                              <> · kept {savedDate}</>
+                            )}
+                          </span>
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          From{" "}
-                          <span className="font-mono">@{letter.senderHandle}</span>{" "}
-                          &middot; to {letter.receiverName}
-                          {savedDate && (
-                            <> &middot; saved {savedDate}</>
-                          )}
+
+                        {/* Chevron affordance */}
+                        <span
+                          className="ml-auto shrink-0 self-center text-muted-foreground group-hover:text-foreground transition-colors text-base leading-none"
+                          aria-hidden
+                        >
+                          ›
                         </span>
                       </Link>
                     </li>
@@ -131,6 +208,7 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
       </div>
     </main>
   );

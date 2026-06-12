@@ -5,66 +5,72 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { loginAction } from "./actions";
 
 export function LoginForm({ next }: { next?: string | null }) {
   const [state, formAction, pending] = useActionState(loginAction, null);
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Log in to your account to continue.</CardDescription>
-      </CardHeader>
-      <form action={formAction}>
-        <CardContent className="space-y-4">
-          {/* Hidden field forwards the safe next path through form submission */}
-          {next && <input type="hidden" name="next" value={next} />}
-          {state?.error && (
-            <p className="text-sm text-destructive">{state.error}</p>
-          )}
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-            />
+    <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-8">
+      <form action={formAction} className="space-y-5" noValidate>
+        {next && <input type="hidden" name="next" value={next} />}
+
+        {state?.error && (
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+          >
+            {state.error}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Logging in…" : "Log in"}
-          </Button>
-          <p className="text-sm text-muted-foreground text-center">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline underline-offset-4">
-              Sign up
-            </Link>
-          </p>
-        </CardFooter>
+        )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-sm font-medium text-foreground">
+            Email
+          </Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+            autoComplete="email"
+            className="focus-visible:ring-ring transition-shadow"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-sm font-medium text-foreground">
+            Password
+          </Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            className="focus-visible:ring-ring transition-shadow"
+          />
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full bg-wax text-primary-foreground hover:opacity-90 transition-opacity rounded-full py-2.5 font-medium shadow-sm mt-2"
+          disabled={pending}
+        >
+          {pending ? "Signing in…" : "Sign in"}
+        </Button>
+
+        <p className="text-sm text-muted-foreground text-center pt-1">
+          New here?{" "}
+          <Link
+            href="/signup"
+            className="text-ink underline underline-offset-4 hover:text-wax transition-colors"
+          >
+            Create an account
+          </Link>
+        </p>
       </form>
-    </Card>
+    </div>
   );
 }

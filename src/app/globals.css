@@ -2,121 +2,283 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/* ============================================================
+   DARK MODE — OS-level activation (prefers-color-scheme: dark)
+   These values are IDENTICAL to the .dark block below.
+   The .dark class overrides still work for a future manual toggle.
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    /* Surfaces */
+    --background:          oklch(0.155 0.012 55);
+    --foreground:          oklch(0.930 0.008 80);
+    --card:                oklch(0.195 0.012 55);
+    --card-foreground:     oklch(0.930 0.008 80);
+    --popover:             oklch(0.195 0.012 55);
+    --popover-foreground:  oklch(0.930 0.008 80);
+
+    /* Primary = brighter terracotta for contrast on dark */
+    --primary:             oklch(0.68  0.155 30);
+    --primary-foreground:  oklch(0.155 0.012 55);
+
+    /* Secondary */
+    --secondary:           oklch(0.240 0.010 55);
+    --secondary-foreground: oklch(0.930 0.008 80);
+
+    /* Muted */
+    --muted:               oklch(0.240 0.010 55);
+    --muted-foreground:    oklch(0.60  0.008 75);
+
+    /* Accent */
+    --accent:              oklch(0.240 0.010 55);
+    --accent-foreground:   oklch(0.930 0.008 80);
+
+    /* Destructive */
+    --destructive:         oklch(0.704 0.191 22.216);
+
+    /* Structure */
+    --border:              oklch(0.300 0.010 55);
+    --input:               oklch(0.300 0.010 55);
+    --ring:                oklch(0.68  0.155 30);
+
+    /* Charts */
+    --chart-1:             oklch(0.68  0.155 30);
+    --chart-2:             oklch(0.72  0.120 48);
+    --chart-3:             oklch(0.78  0.090 65);
+    --chart-4:             oklch(0.60  0.060 80);
+    --chart-5:             oklch(0.65  0.080 220);
+
+    /* Sidebar */
+    --sidebar:                    oklch(0.195 0.012 55);
+    --sidebar-foreground:         oklch(0.930 0.008 80);
+    --sidebar-primary:            oklch(0.68  0.155 30);
+    --sidebar-primary-foreground: oklch(0.155 0.012 55);
+    --sidebar-accent:             oklch(0.240 0.010 55);
+    --sidebar-accent-foreground:  oklch(0.930 0.008 80);
+    --sidebar-border:             oklch(0.300 0.010 55);
+    --sidebar-ring:               oklch(0.68  0.155 30);
+
+    /* Semantic brand helpers */
+    --paper: oklch(0.195 0.012 55);
+    --ink:   oklch(0.930 0.008 80);
+    --wax:   oklch(0.68  0.155 30);
+    --seal:  oklch(0.68  0.155 30);
+  }
+}
+
+/* ============================================================
+   SEND A LETTER — Brand Palette  (paper & ink, wax-seal accent)
+   ============================================================
+   Light mode
+     --background / --paper  : oklch(0.975 0.008 80)   warm ivory
+     --foreground / --ink    : oklch(0.18  0.012 55)   deep charcoal-brown
+     --primary    / --wax    : oklch(0.50  0.155 30)   terracotta / rosewood red
+     --card                  : oklch(0.985 0.006 80)   slightly lighter ivory card
+     --muted                 : oklch(0.940 0.010 78)   warm gray-ivory
+     --border                : oklch(0.860 0.012 78)   soft warm rule
+
+   Dark mode
+     --background            : oklch(0.155 0.012 55)   deep inky brown-black
+     --foreground            : oklch(0.930 0.008 80)   warm off-white
+     --primary               : oklch(0.68  0.155 30)   lighter terracotta on dark
+     --card                  : oklch(0.195 0.012 55)   slightly lifted dark card
+     --muted                 : oklch(0.240 0.010 55)   subtle dark muted
+     --border                : oklch(0.300 0.010 55)   visible dark rule
+
+   Accent (both modes): shared with primary (wax/terracotta)
+   Destructive: standard WCAG-safe red
+   ============================================================ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
+  /* --- Core color tokens → Tailwind utilities (bg-*, text-*, etc.) --- */
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
+
+  /* --- Semantic brand helpers → bg-paper, text-ink, text-wax, bg-seal --- */
+  --color-paper:                var(--paper);
+  --color-ink:                  var(--ink);
+  --color-wax:                  var(--wax);
+  --color-seal:                 var(--seal);
+
+  /* --- Charts --- */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* --- Sidebar --- */
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
+
+  /* --- Radii --- */
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* --- Typography --- */
+  --font-sans:    var(--font-sans);
+  --font-mono:    var(--font-geist-mono);
+  --font-serif:   var(--font-fraunces);
+  --font-heading: var(--font-fraunces);
 }
 
+/* ============================================================
+   LIGHT MODE (default)
+   ============================================================ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Surfaces */
+  --background:          oklch(0.975 0.008 80);
+  --foreground:          oklch(0.18  0.012 55);
+  --card:                oklch(0.985 0.006 80);
+  --card-foreground:     oklch(0.18  0.012 55);
+  --popover:             oklch(0.985 0.006 80);
+  --popover-foreground:  oklch(0.18  0.012 55);
+
+  /* Primary = wax-seal terracotta */
+  --primary:             oklch(0.50  0.155 30);
+  --primary-foreground:  oklch(0.975 0.006 80);
+
+  /* Secondary = warm parchment tint */
+  --secondary:           oklch(0.940 0.010 78);
+  --secondary-foreground: oklch(0.18 0.012 55);
+
+  /* Muted */
+  /* --muted-foreground: darkened from 0.48→0.43 L to hit WCAG AA (≥4.5:1) on
+     --background oklch(0.975 0.008 80).  Approx contrast: 4.76:1. Keep warm. */
+  --muted:               oklch(0.940 0.010 78);
+  --muted-foreground:    oklch(0.43  0.012 60);
+
+  /* Accent = warm highlight (same hue family as wax) */
+  --accent:              oklch(0.940 0.010 78);
+  --accent-foreground:   oklch(0.18  0.012 55);
+
+  /* Destructive */
+  --destructive:         oklch(0.577 0.245 27.325);
+
+  /* Structure */
+  --border:              oklch(0.860 0.012 78);
+  --input:               oklch(0.860 0.012 78);
+  --ring:                oklch(0.50  0.155 30);
+
+  /* Charts (warm tones) */
+  --chart-1:             oklch(0.50  0.155 30);
+  --chart-2:             oklch(0.62  0.120 48);
+  --chart-3:             oklch(0.72  0.090 65);
+  --chart-4:             oklch(0.80  0.060 80);
+  --chart-5:             oklch(0.55  0.080 220);
+
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar:                    oklch(0.965 0.008 80);
+  --sidebar-foreground:         oklch(0.18  0.012 55);
+  --sidebar-primary:            oklch(0.50  0.155 30);
+  --sidebar-primary-foreground: oklch(0.975 0.006 80);
+  --sidebar-accent:             oklch(0.940 0.010 78);
+  --sidebar-accent-foreground:  oklch(0.18  0.012 55);
+  --sidebar-border:             oklch(0.860 0.012 78);
+  --sidebar-ring:               oklch(0.50  0.155 30);
+
+  /* Semantic brand helpers */
+  --paper: oklch(0.975 0.008 80);
+  --ink:   oklch(0.18  0.012 55);
+  --wax:   oklch(0.50  0.155 30);
+  --seal:  oklch(0.50  0.155 30);
 }
 
+/* ============================================================
+   DARK MODE
+   ============================================================ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Surfaces */
+  --background:          oklch(0.155 0.012 55);
+  --foreground:          oklch(0.930 0.008 80);
+  --card:                oklch(0.195 0.012 55);
+  --card-foreground:     oklch(0.930 0.008 80);
+  --popover:             oklch(0.195 0.012 55);
+  --popover-foreground:  oklch(0.930 0.008 80);
+
+  /* Primary = brighter terracotta for contrast on dark */
+  --primary:             oklch(0.68  0.155 30);
+  --primary-foreground:  oklch(0.155 0.012 55);
+
+  /* Secondary */
+  --secondary:           oklch(0.240 0.010 55);
+  --secondary-foreground: oklch(0.930 0.008 80);
+
+  /* Muted */
+  --muted:               oklch(0.240 0.010 55);
+  --muted-foreground:    oklch(0.60  0.008 75);
+
+  /* Accent */
+  --accent:              oklch(0.240 0.010 55);
+  --accent-foreground:   oklch(0.930 0.008 80);
+
+  /* Destructive */
+  --destructive:         oklch(0.704 0.191 22.216);
+
+  /* Structure */
+  --border:              oklch(0.300 0.010 55);
+  --input:               oklch(0.300 0.010 55);
+  --ring:                oklch(0.68  0.155 30);
+
+  /* Charts */
+  --chart-1:             oklch(0.68  0.155 30);
+  --chart-2:             oklch(0.72  0.120 48);
+  --chart-3:             oklch(0.78  0.090 65);
+  --chart-4:             oklch(0.60  0.060 80);
+  --chart-5:             oklch(0.65  0.080 220);
+
+  /* Sidebar */
+  --sidebar:                    oklch(0.195 0.012 55);
+  --sidebar-foreground:         oklch(0.930 0.008 80);
+  --sidebar-primary:            oklch(0.68  0.155 30);
+  --sidebar-primary-foreground: oklch(0.155 0.012 55);
+  --sidebar-accent:             oklch(0.240 0.010 55);
+  --sidebar-accent-foreground:  oklch(0.930 0.008 80);
+  --sidebar-border:             oklch(0.300 0.010 55);
+  --sidebar-ring:               oklch(0.68  0.155 30);
+
+  /* Semantic brand helpers */
+  --paper: oklch(0.195 0.012 55);
+  --ink:   oklch(0.930 0.008 80);
+  --wax:   oklch(0.68  0.155 30);
+  --seal:  oklch(0.68  0.155 30);
 }
 
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -126,5 +288,112 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ============================================================
+   MOTION KEYFRAMES  (paper & ink — signature animations)
+   ============================================================
+   Usage guide for downstream agents:
+     .animate-rise-in        — gentle fade+lift entrance (cards, modals)
+     .animate-unfold         — letter content reveal on unlock
+     .animate-seal-break     — wax seal crack/pop on first open
+     .animate-wax-pulse      — idle breathing pulse on the seal icon
+     .animate-flap-open      — envelope flap rotating open
+
+   All animations respect prefers-reduced-motion:
+     • Default: animations play
+     • If user prefers reduced motion: animations are disabled (opacity:1,
+       transform:none, animation:none) — safe for all accessibility contexts.
+   ============================================================ */
+
+/* --- rise-in: fade + lift (use for entering cards, text blocks) --- */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- unfold: scale from center, like paper unfolding (use on letter body) --- */
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6) translateY(-8px);
+    transform-origin: top center;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+    transform-origin: top center;
+  }
+}
+
+/* --- seal-break: stamp pop then settle (use on the seal element at unlock) --- */
+@keyframes seal-break {
+  0%   { transform: scale(1)    rotate(0deg); }
+  25%  { transform: scale(1.22) rotate(-6deg); }
+  50%  { transform: scale(0.88) rotate(4deg); }
+  75%  { transform: scale(1.08) rotate(-2deg); }
+  100% { transform: scale(1)    rotate(0deg); }
+}
+
+/* --- wax-pulse: gentle idle breathing (use on seal when letter is sealed) --- */
+@keyframes wax-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.06); opacity: 0.85; }
+}
+
+/* --- flap-open: envelope flap rotates open (use on Envelope SVG flap element) --- */
+@keyframes flap-open {
+  from { transform: rotateX(0deg);   transform-origin: top center; }
+  to   { transform: rotateX(-160deg); transform-origin: top center; }
+}
+
+/* ---- Animation utility classes ---- */
+.animate-rise-in {
+  animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-unfold {
+  animation: unfold 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-seal-break {
+  animation: seal-break 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-wax-pulse {
+  animation: wax-pulse 2.8s ease-in-out infinite;
+}
+
+.animate-flap-open {
+  animation: flap-open 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ---- Perspective helper for 3-D flap animation ----
+   Apply .perspective-envelope to the envelope wrapper so that
+   `.animate-flap-open` (rotateX) renders in perspective.
+   Usage: <div class="perspective-envelope"><Envelope .animate-flap-open /></div>
+*/
+.perspective-envelope {
+  perspective: 600px;
+  perspective-origin: 50% 0%;
+}
+
+/* ---- Reduced-motion safety: disable all brand animations ---- */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in,
+  .animate-unfold,
+  .animate-seal-break,
+  .animate-wax-pulse,
+  .animate-flap-open {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }

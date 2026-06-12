@@ -86,19 +86,27 @@ export function KeepButton({ letterId, letterPath }: KeepButtonProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <button
+        type="button"
         onClick={handleKeep}
         disabled={isPending || status === "loading" || status === "saved"}
-        className="rounded-md bg-amber-700 px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className={[
+          "rounded-full px-6 py-2.5 text-sm font-medium font-sans",
+          "bg-primary text-primary-foreground shadow-sm",
+          "transition-all duration-150",
+          "hover:opacity-90 hover:shadow-md active:scale-[0.97]",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+          "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
+        ].join(" ")}
       >
         {status === "saved"
-          ? "Saved! Redirecting…"
+          ? "Saved — on your way…"
           : isPending || status === "loading"
-          ? "Saving…"
+          ? "Keeping it…"
           : "Keep this letter"}
       </button>
 
       {messageMap[status] && (
-        <p role="alert" className="text-sm text-red-700 text-center">
+        <p role="alert" className="text-sm text-destructive text-center">
           {messageMap[status]}
         </p>
       )}
