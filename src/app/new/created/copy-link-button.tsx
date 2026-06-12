@@ -33,7 +33,7 @@ export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
       variant={copied ? "default" : "outline"}
       className={
         copied
-          ? "w-full bg-wax text-primary-foreground hover:opacity-90 transition-all rounded-full"
+          ? "w-full bg-wax text-primary-foreground hover:bg-wax-deep transition-all rounded-full"
           : "w-full border-border text-ink hover:bg-muted transition-all rounded-full"
       }
       type="button"

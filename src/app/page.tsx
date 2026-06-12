@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getUser, getProfile } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Wordmark } from "@/components/brand/Wordmark";
 import { Envelope } from "@/components/brand/Envelope";
 
 export default async function Home() {
@@ -10,16 +9,18 @@ export default async function Home() {
   const profile = user ? await getProfile() : null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-paper px-6 py-16">
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <div className="flex flex-col items-center text-center space-y-10 max-w-md w-full">
         {/* Brand mark */}
-        <div className="animate-rise-in flex flex-col items-center gap-6">
+        <div className="animate-rise-in flex flex-col items-center gap-5">
           <Envelope
             state="sealed"
             className="w-20 h-20 text-ink animate-wax-pulse"
             aria-hidden
           />
-          <Wordmark size="lg" className="text-ink" />
+          <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            Send a Letter
+          </span>
         </div>
 
         {/* Hero copy */}
@@ -43,7 +44,7 @@ export default async function Home() {
               href={profile ? "/dashboard" : "/onboarding"}
               className={cn(
                 buttonVariants({ variant: "default" }),
-                "bg-wax text-primary-foreground hover:opacity-90 transition-opacity px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
+                "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
               )}
             >
               Open my letters
@@ -54,7 +55,7 @@ export default async function Home() {
                 href="/signup"
                 className={cn(
                   buttonVariants({ variant: "default" }),
-                  "bg-wax text-primary-foreground hover:opacity-90 transition-opacity px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
+                  "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
                 )}
               >
                 Write your first letter

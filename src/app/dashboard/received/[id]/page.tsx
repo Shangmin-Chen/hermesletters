@@ -101,7 +101,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
   });
 
   return (
-    <main className="min-h-screen bg-background p-4 pt-8 sm:p-6 sm:pt-12">
+    <main className="min-h-screen p-4 pt-8 sm:p-6 sm:pt-12">
       <div className="mx-auto max-w-xl">
 
         {/* ── Back link ─────────────────────────────────────────────────── */}

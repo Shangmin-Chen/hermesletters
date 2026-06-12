@@ -6,7 +6,7 @@ export default async function NewLetterPage() {
   const profile = await requireProfile();
 
   return (
-    <main className="min-h-screen bg-paper flex flex-col items-center justify-start px-4 py-10 sm:py-16">
+    <main className="min-h-screen flex flex-col items-center justify-start px-4 py-10 sm:py-16">
       {/* Page header */}
       <header className="mb-8 flex flex-col items-center gap-2 animate-rise-in">
         <Wordmark size="sm" className="text-muted-foreground" />

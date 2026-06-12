@@ -17,7 +17,7 @@ export default function AppError({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <main className="min-h-screen bg-paper flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm animate-rise-in space-y-8 text-center">
         <div className="flex flex-col items-center gap-4">
           <Envelope state="open" className="w-16 h-16 text-ink" aria-hidden />
@@ -38,7 +38,7 @@ export default function AppError({ error, reset }: ErrorProps) {
           <div className="flex flex-col gap-2">
             <Button
               onClick={reset}
-              className="w-full bg-wax text-primary-foreground hover:opacity-90 transition-opacity rounded-full font-medium shadow-sm"
+              className="w-full bg-wax text-primary-foreground hover:bg-wax-deep transition-colors rounded-full font-medium shadow-sm"
               type="button"
             >
               Try again

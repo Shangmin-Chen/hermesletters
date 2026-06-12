@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
@@ -22,8 +22,19 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Send a Letter",
-  description: "Write a virtual letter, lock it behind a personal question, and share it.",
+  title: {
+    default: "Send a Letter",
+    template: "%s · Send a Letter",
+  },
+  description:
+    "Write something real. Seal it with a secret only they know. Share it once — it opens once.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f6f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#211e1b" },
+  ],
 };
 
 export default function RootLayout({

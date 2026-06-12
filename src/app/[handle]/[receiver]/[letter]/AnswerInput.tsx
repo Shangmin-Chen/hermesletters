@@ -120,12 +120,12 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
       >
         {/* Render word-by-word so spaces create visible gaps */}
         {answerShape.split(" ").map((word, wi) => (
-          <span key={wi} className="flex gap-px">
+          <span key={wi} className="flex gap-1">
             {word.split("").map((ch, ci) =>
               ch === "_" ? (
                 <span
                   key={ci}
-                  className="inline-block w-5 border-b-2 border-wax/60"
+                  className="inline-block h-6 w-4 border-b-2 border-wax/60"
                 />
               ) : null
             )}
@@ -182,7 +182,7 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
             "relative rounded-full px-6 py-2.5 text-sm font-medium font-sans",
             "bg-primary text-primary-foreground shadow-sm",
             "transition-all duration-150",
-            "hover:opacity-90 hover:shadow-md active:scale-[0.97]",
+            "hover:bg-wax-deep hover:shadow-md active:scale-[0.97]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
           ].join(" ")}

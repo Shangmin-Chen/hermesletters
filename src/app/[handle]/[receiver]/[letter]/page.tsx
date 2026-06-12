@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
 import { AnswerInput } from "./AnswerInput";
 import { KeepButton } from "./KeepButton";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,7 +182,7 @@ function LockedView({
   const receiverDisplay = receiverName.replace(/-/g, " ");
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+    <main className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-rise-in">
         {/* Card — stationery feel */}
         <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
@@ -250,17 +251,8 @@ function UnsealedView({
   hasProfile: boolean;
   letterPath: string;
 }) {
-  const expiresFormatted = expiresAt.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
-
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+    <main className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-xl">
         <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden animate-rise-in">
 
@@ -312,7 +304,10 @@ function UnsealedView({
           <div className="border-t border-border bg-muted/60 px-6 py-5 flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               This letter is yours until{" "}
-              <strong className="text-foreground">{expiresFormatted}</strong>.{" "}
+              <strong className="text-foreground">
+                <LocalDateTime date={expiresAt} />
+              </strong>
+              .{" "}
               Keep it, and it stays with you for good.
             </p>
 
@@ -358,7 +353,7 @@ function UnsealedView({
 
 function SealedView({ message }: { message: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+    <main className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-rise-in">
         <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
           {/* Sealed header */}

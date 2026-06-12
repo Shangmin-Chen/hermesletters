@@ -93,7 +93,7 @@ export function KeepButton({ letterId, letterPath }: KeepButtonProps) {
           "rounded-full px-6 py-2.5 text-sm font-medium font-sans",
           "bg-primary text-primary-foreground shadow-sm",
           "transition-all duration-150",
-          "hover:opacity-90 hover:shadow-md active:scale-[0.97]",
+          "hover:bg-wax-deep hover:shadow-md active:scale-[0.97]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
           "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
         ].join(" ")}

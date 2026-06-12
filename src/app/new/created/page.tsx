@@ -40,7 +40,7 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
   const fullUrl = `${origin}${letterPath}`;
 
   return (
-    <main className="min-h-screen bg-paper flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg animate-rise-in space-y-8">
         {/* Header */}
         <header className="flex flex-col items-center gap-4 text-center">

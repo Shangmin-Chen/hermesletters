@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,23 +18,12 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     null
   );
 
-  const receiverRef = useRef<HTMLInputElement>(null);
-  const letterRef = useRef<HTMLInputElement>(null);
+  const [receiverSlug, setReceiverSlug] = useState("");
+  const [letterSlug, setLetterSlug] = useState("");
 
-  function getPreviewSlug(value: string): string {
-    return slugify(value);
-  }
-
-  function updatePreview() {
-    const receiverSlug = getPreviewSlug(receiverRef.current?.value ?? "");
-    const letterSlug = getPreviewSlug(letterRef.current?.value ?? "");
-    const previewEl = document.getElementById("url-preview");
-    if (previewEl) {
-      const receiverPart = receiverSlug || "<receiver>";
-      const letterPart = letterSlug || "<letter>";
-      previewEl.textContent = `/${senderHandle}/${receiverPart}/${letterPart}`;
-    }
-  }
+  const previewPath = `/${senderHandle}/${receiverSlug || "<receiver>"}/${
+    letterSlug || "<letter>"
+  }`;
 
   return (
     <form action={formAction} className="space-y-8">
@@ -61,9 +50,8 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           <Input
             id="receiver_name"
             name="receiver_name"
-            ref={receiverRef}
             placeholder="e.g. Jane"
-            onInput={updatePreview}
+            onChange={(e) => setReceiverSlug(slugify(e.target.value))}
             required
             disabled={isPending}
             className="focus-visible:ring-ring transition-shadow"
@@ -81,9 +69,8 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           <Input
             id="letter_name"
             name="letter_name"
-            ref={letterRef}
             placeholder="e.g. Summer 2025"
-            onInput={updatePreview}
+            onChange={(e) => setLetterSlug(slugify(e.target.value))}
             required
             disabled={isPending}
             className="focus-visible:ring-ring transition-shadow"
@@ -105,7 +92,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             aria-live="polite"
             aria-label="Live URL preview"
           >
-            /{senderHandle}/{"<receiver>"}{"/<letter>"}
+            {previewPath}
           </p>
         </div>
       </section>
@@ -127,7 +114,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             rows={9}
             required
             disabled={isPending}
-            className="resize-y focus-visible:ring-ring transition-shadow leading-relaxed"
+            className="resize-y focus-visible:ring-ring transition-shadow font-serif text-base leading-[1.85] px-4 py-3 placeholder:font-sans placeholder:text-sm"
           />
         </div>
 
@@ -203,7 +190,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       {/* Submit */}
       <Button
         type="submit"
-        className="w-full bg-wax text-primary-foreground hover:opacity-90 transition-opacity rounded-full py-2.5 text-sm font-medium shadow-sm"
+        className="w-full bg-wax text-primary-foreground hover:bg-wax-deep transition-colors rounded-full py-2.5 text-sm font-medium shadow-sm"
         disabled={isPending}
       >
         {isPending ? "Sealing your letter…" : "Seal & send"}

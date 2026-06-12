@@ -11,7 +11,7 @@ export default async function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-paper flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm animate-rise-in space-y-8">
         <header className="flex flex-col items-center gap-2 text-center">
           <Wordmark size="md" className="text-ink" />

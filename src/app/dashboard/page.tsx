@@ -47,17 +47,29 @@ export default async function DashboardPage() {
   const greeting = profile.display_name ?? `@${profile.handle}`;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-start bg-background p-4 pt-10 sm:p-6 sm:pt-14">
+    <main className="flex min-h-screen flex-col items-center justify-start p-4 pt-10 sm:p-6 sm:pt-14">
       <div className="w-full max-w-2xl space-y-6">
 
         {/* ── Header card ─────────────────────────────────────────────────── */}
         <Card className="animate-rise-in overflow-hidden border-border bg-card shadow-sm">
           {/* Warm top strip */}
-          <div className="bg-muted border-b border-border px-6 py-4 flex items-center justify-between gap-3">
+          <div className="bg-muted border-b border-border px-6 py-3 flex items-center justify-between gap-3">
             <Wordmark size="sm" className="text-ink" />
-            <span className="text-xs text-muted-foreground font-mono">
-              @{profile.handle}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground font-mono">
+                @{profile.handle}
+              </span>
+              <form action="/auth/signout" method="POST">
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Sign out
+                </Button>
+              </form>
+            </div>
           </div>
 
           <CardHeader className="pb-2 pt-5">
@@ -77,23 +89,12 @@ export default async function DashboardPage() {
               href="/new"
               className={cn(
                 buttonVariants({ variant: "default" }),
-                "w-full inline-flex justify-center gap-2 bg-wax text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                "w-full inline-flex justify-center gap-2 bg-wax text-primary-foreground hover:bg-wax-deep transition-colors active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
               <Envelope state="sealed" className="w-4 h-4 shrink-0" aria-hidden />
               Write a letter
             </Link>
-
-            {/* Secondary action */}
-            <form action="/auth/signout" method="POST">
-              <Button
-                type="submit"
-                variant="outline"
-                className="w-full border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-              >
-                Sign out
-              </Button>
-            </form>
           </CardContent>
         </Card>
 
@@ -137,14 +138,14 @@ export default async function DashboardPage() {
 
                 {/* Gentle nudge CTA */}
                 <p className="text-xs text-muted-foreground">
-                  Share your link so someone can write to you, or{" "}
+                  In the meantime, why not{" "}
                   <Link
                     href="/new"
                     className="text-wax underline underline-offset-2 hover:text-wax/80 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
                   >
-                    write a letter yourself
+                    write one yourself
                   </Link>
-                  .
+                  ? Someone&apos;s probably waiting to hear from you.
                 </p>
               </div>
             ) : (

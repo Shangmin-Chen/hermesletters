@@ -64,7 +64,15 @@
     --paper: oklch(0.195 0.012 55);
     --ink:   oklch(0.930 0.008 80);
     --wax:   oklch(0.68  0.155 30);
+    --wax-deep: oklch(0.74 0.150 30);
     --seal:  oklch(0.68  0.155 30);
+
+    /* Paper sheen — barely-there warm glow at the top of the page */
+    --paper-sheen: radial-gradient(
+      120% 60% at 50% 0%,
+      oklch(0.22 0.014 55) 0%,
+      transparent 70%
+    );
   }
 }
 
@@ -116,6 +124,7 @@
   --color-paper:                var(--paper);
   --color-ink:                  var(--ink);
   --color-wax:                  var(--wax);
+  --color-wax-deep:             var(--wax-deep);
   --color-seal:                 var(--seal);
 
   /* --- Charts --- */
@@ -213,7 +222,15 @@
   --paper: oklch(0.975 0.008 80);
   --ink:   oklch(0.18  0.012 55);
   --wax:   oklch(0.50  0.155 30);
+  --wax-deep: oklch(0.44 0.150 30);
   --seal:  oklch(0.50  0.155 30);
+
+  /* Paper sheen — barely-there warm glow at the top of the page */
+  --paper-sheen: radial-gradient(
+    120% 60% at 50% 0%,
+    oklch(0.99 0.010 85) 0%,
+    transparent 70%
+  );
 }
 
 /* ============================================================
@@ -273,7 +290,15 @@
   --paper: oklch(0.195 0.012 55);
   --ink:   oklch(0.930 0.008 80);
   --wax:   oklch(0.68  0.155 30);
+  --wax-deep: oklch(0.74 0.150 30);
   --seal:  oklch(0.68  0.155 30);
+
+  /* Paper sheen — barely-there warm glow at the top of the page */
+  --paper-sheen: radial-gradient(
+    120% 60% at 50% 0%,
+    oklch(0.22 0.014 55) 0%,
+    transparent 70%
+  );
 }
 
 /* ============================================================
@@ -285,9 +310,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: var(--paper-sheen);
+    background-repeat: no-repeat;
   }
   html {
     @apply font-sans;
+  }
+
+  /* Stationery signature: ink-on-wax text selection */
+  ::selection {
+    background: color-mix(in oklch, var(--wax), transparent 75%);
+  }
+
+  /* Writing surfaces carry a wax-colored caret */
+  input,
+  textarea {
+    caret-color: var(--wax);
   }
 }
 
