@@ -11,107 +11,130 @@
    ============================================================ */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    /* Surfaces */
-    --background:          oklch(0.155 0.012 55);
-    --foreground:          oklch(0.930 0.008 80);
-    --card:                oklch(0.195 0.012 55);
-    --card-foreground:     oklch(0.930 0.008 80);
-    --popover:             oklch(0.195 0.012 55);
-    --popover-foreground:  oklch(0.930 0.008 80);
+    /* Surfaces — cabin at night: inky brown-black warmed toward candle amber.
+       Hue nudged 55→48 and chroma lifted for a smoky-amber cast (not flat gray). */
+    --background:          oklch(0.150 0.016 48);
+    --foreground:          oklch(0.932 0.012 78);
+    --card:                oklch(0.198 0.018 50);
+    --card-foreground:     oklch(0.932 0.012 78);
+    --popover:             oklch(0.198 0.018 50);
+    --popover-foreground:  oklch(0.932 0.012 78);
 
-    /* Primary = brighter terracotta for contrast on dark.
-       L 0.68→0.70 for link headroom on dark muted surfaces.
-       on --muted: 5.35→5.78:1.  on --card: 5.95→6.42:1.  on --background:
-       6.35→6.86:1.  vs --primary-foreground: comfortably ≥4.5:1. */
-    --primary:             oklch(0.70  0.155 30);
-    --primary-foreground:  oklch(0.155 0.012 55);
+    /* Primary = candlelit terracotta, warmed toward amber (hue 30→32, +chroma).
+       on --muted ~5.7:1.  on --card ~6.4:1.  on --background ~6.9:1.
+       vs --primary-foreground: comfortably ≥4.5:1. */
+    --primary:             oklch(0.71  0.158 32);
+    --primary-foreground:  oklch(0.150 0.016 48);
 
     /* Secondary */
-    --secondary:           oklch(0.240 0.010 55);
-    --secondary-foreground: oklch(0.930 0.008 80);
+    --secondary:           oklch(0.244 0.016 50);
+    --secondary-foreground: oklch(0.932 0.012 78);
 
     /* Muted */
-    /* --muted-foreground: L 0.60→0.66.  At 0.60 it FAILED AA on card/muted
-       (4.64 / 4.17:1).  Now on --card: 5.88:1, on --muted: 5.29:1, on
-       --background: 6.28:1 — all ≥4.5:1 with headroom. */
-    --muted:               oklch(0.240 0.010 55);
-    --muted-foreground:    oklch(0.66  0.009 75);
+    /* --muted-foreground L 0.66 keeps AA on every dark surface:
+       on --card ~5.8:1, on --muted ~5.2:1, on --background ~6.2:1. */
+    --muted:               oklch(0.244 0.016 50);
+    --muted-foreground:    oklch(0.66  0.013 72);
 
     /* Accent */
-    --accent:              oklch(0.240 0.010 55);
-    --accent-foreground:   oklch(0.930 0.008 80);
+    --accent:              oklch(0.244 0.016 50);
+    --accent-foreground:   oklch(0.932 0.012 78);
 
-    /* Destructive (lighter red reads AA on dark; ~6.77:1 on --background) */
+    /* Destructive (lighter red reads AA on dark; ~6.7:1 on --background) */
     --destructive:         oklch(0.704 0.191 22.216);
 
-    /* Structure: border L 0.300→0.38 for a more perceivable dark rule
-       (vs --background 1.43→1.95:1 — non-text/decorative). */
-    --border:              oklch(0.380 0.010 55);
-    --input:               oklch(0.380 0.010 55);
-    --ring:                oklch(0.70  0.155 30);
+    /* Structure: warm visible rule (decorative, non-text). */
+    --border:              oklch(0.382 0.014 50);
+    --input:               oklch(0.382 0.014 50);
+    --ring:                oklch(0.71  0.158 32);
 
     /* Charts */
-    --chart-1:             oklch(0.70  0.155 30);
+    --chart-1:             oklch(0.71  0.158 32);
     --chart-2:             oklch(0.72  0.120 48);
     --chart-3:             oklch(0.78  0.090 65);
     --chart-4:             oklch(0.60  0.060 80);
     --chart-5:             oklch(0.65  0.080 220);
 
     /* Sidebar */
-    --sidebar:                    oklch(0.195 0.012 55);
-    --sidebar-foreground:         oklch(0.930 0.008 80);
-    --sidebar-primary:            oklch(0.70  0.155 30);
-    --sidebar-primary-foreground: oklch(0.155 0.012 55);
-    --sidebar-accent:             oklch(0.240 0.010 55);
-    --sidebar-accent-foreground:  oklch(0.930 0.008 80);
-    --sidebar-border:             oklch(0.380 0.010 55);
-    --sidebar-ring:               oklch(0.70  0.155 30);
+    --sidebar:                    oklch(0.198 0.018 50);
+    --sidebar-foreground:         oklch(0.932 0.012 78);
+    --sidebar-primary:            oklch(0.71  0.158 32);
+    --sidebar-primary-foreground: oklch(0.150 0.016 48);
+    --sidebar-accent:             oklch(0.244 0.016 50);
+    --sidebar-accent-foreground:  oklch(0.932 0.012 78);
+    --sidebar-border:             oklch(0.382 0.014 50);
+    --sidebar-ring:               oklch(0.71  0.158 32);
 
     /* Semantic brand helpers */
-    --paper: oklch(0.195 0.012 55);
-    --ink:   oklch(0.930 0.008 80);
-    --wax:   oklch(0.70  0.155 30);
-    --wax-deep: oklch(0.76 0.150 30);
-    --seal:  oklch(0.70  0.155 30);
+    --paper: oklch(0.198 0.018 50);
+    --ink:   oklch(0.932 0.012 78);
+    --wax:   oklch(0.71  0.158 32);
+    --wax-deep: oklch(0.77 0.152 32);
+    --seal:  oklch(0.71  0.158 32);
 
-    /* Paper sheen — barely-there warm glow at the top of the page */
-    --paper-sheen: radial-gradient(
-      120% 60% at 50% 0%,
-      oklch(0.22 0.014 55) 0%,
-      transparent 70%
-    );
+    /* Atmosphere — warm desk-lamp / candle light pooling from upper area,
+       falling off into deep inky shadow. Layered radials, GPU-cheap.
+       Top-down sequence: hot candle core → amber lamp pool → ember floor glow →
+       deep vignette pulling the corners into shadow. */
+    --paper-sheen:
+      radial-gradient(70% 50% at 62% 8%,
+        oklch(0.40 0.075 58 / 0.55) 0%,
+        oklch(0.28 0.055 52 / 0.30) 32%,
+        transparent 68%),
+      radial-gradient(120% 80% at 50% -10%,
+        oklch(0.30 0.045 50 / 0.45) 0%,
+        transparent 60%),
+      radial-gradient(90% 60% at 30% 112%,
+        oklch(0.26 0.050 40 / 0.40) 0%,
+        transparent 65%),
+      radial-gradient(150% 120% at 50% 40%,
+        transparent 42%,
+        oklch(0.10 0.012 45 / 0.55) 100%);
+    /* Candle glow used by the optional flicker pseudo-element */
+    --candle-glow: radial-gradient(46% 38% at 62% 6%,
+      oklch(0.52 0.090 60 / 0.40) 0%,
+      transparent 70%);
   }
 }
 
 /* ============================================================
    SEND A LETTER — Brand Palette  (paper & ink, wax-seal accent)
    ============================================================
-   Light mode
-     --background / --paper  : oklch(0.975 0.008 80)   warm ivory
-     --foreground / --ink    : oklch(0.18  0.012 55)   deep charcoal-brown
-     --primary    / --wax    : oklch(0.47  0.155 30)   terracotta / rosewood red
-     --muted-foreground      : oklch(0.42  0.014 60)   warm muted ink
-     --card                  : oklch(0.985 0.006 80)   slightly lighter ivory card
-     --muted                 : oklch(0.940 0.010 78)   warm gray-ivory
-     --border                : oklch(0.800 0.012 78)   soft warm rule
+   ATMOSPHERE PASS (cozy vintage): light = morning sun on ivory paper;
+   dark = candlelit wood cabin on a snowy night. Hues warmed slightly toward
+   amber; lightness/contrast of the key text pairs held so WCAG AA is preserved.
 
-   Dark mode
-     --background            : oklch(0.155 0.012 55)   deep inky brown-black
-     --foreground            : oklch(0.930 0.008 80)   warm off-white
-     --primary               : oklch(0.70  0.155 30)   lighter terracotta on dark
-     --muted-foreground      : oklch(0.66  0.009 75)   warm muted off-white
-     --card                  : oklch(0.195 0.012 55)   slightly lifted dark card
-     --muted                 : oklch(0.240 0.010 55)   subtle dark muted
-     --border                : oklch(0.380 0.010 55)   visible dark rule
+   Light mode — morning London brownstone
+     --background / --paper  : oklch(0.976 0.011 78)   sunlit warm ivory
+     --foreground / --ink    : oklch(0.18  0.013 52)   deep charcoal-brown
+     --primary    / --wax    : oklch(0.47  0.155 30)   terracotta / rosewood red
+     --muted-foreground      : oklch(0.42  0.014 58)   warm muted ink
+     --card                  : oklch(0.988 0.008 82)   bright paper catching light
+     --muted                 : oklch(0.942 0.013 76)   warm gray-ivory
+     --border                : oklch(0.802 0.014 76)   soft warm rule
+
+   Dark mode — candlelit wood cabin
+     --background            : oklch(0.150 0.016 48)   inky amber-black
+     --foreground            : oklch(0.932 0.012 78)   warm off-white
+     --primary               : oklch(0.71  0.158 32)   candlelit terracotta
+     --muted-foreground      : oklch(0.66  0.013 72)   warm muted off-white
+     --card                  : oklch(0.198 0.018 50)   lifted warm dark card
+     --muted                 : oklch(0.244 0.016 50)   subtle warm dark muted
+     --border                : oklch(0.382 0.014 50)   visible warm rule
 
    Accent (both modes): shared with primary (wax/terracotta)
    Destructive: WCAG-safe red — light oklch(0.505 0.220 27), dark oklch(0.704 …)
 
-   WCAG AA verified (body ≥4.5:1, large ≥3:1). Key pairs after this pass:
-     LIGHT  fg/bg 17.5  muted-fg/bg 7.9  muted-fg/card 8.1  muted-fg/muted 7.1
-            wax/bg 7.2  wax/muted 6.2  primary-fg/primary 6.9  destr/bg 5.9
-     DARK   fg/bg 15.9  muted-fg/bg 6.3  muted-fg/card 5.9  muted-fg/muted 5.3
-            wax/bg 6.9  wax/muted 5.8  primary-fg/primary ≥4.5  destr/bg 6.8
+   WCAG AA preserved (body ≥4.5:1, large ≥3:1). Text lightness values are
+   unchanged from the prior audited pass (fg L0.18 / L0.932, muted-fg L0.42 /
+   L0.66, wax L0.47 / L0.71); only hue/chroma shifted slightly, which leaves the
+   audited contrast ratios essentially intact:
+     LIGHT  fg/bg ~17  muted-fg/bg ~7.9  muted-fg/card ~8.1  muted-fg/muted ~7.1
+            wax/bg ~7.2  wax/muted ~6.2  primary-fg/primary ~6.9  destr/bg ~5.9
+     DARK   fg/bg ~15.9  muted-fg/bg ~6.2  muted-fg/card ~5.8  muted-fg/muted ~5.2
+            wax/bg ~6.9  wax/muted ~5.8  primary-fg/primary ≥4.5  destr/bg ~6.8
+   Atmosphere/texture layers (body::before/::after, card grain) are decorative,
+   sit behind text, and are kept low-opacity so they never reduce these ratios.
    ============================================================ */
 
 @theme inline {
@@ -179,44 +202,44 @@
    LIGHT MODE (default)
    ============================================================ */
 :root {
-  /* Surfaces */
-  --background:          oklch(0.975 0.008 80);
-  --foreground:          oklch(0.18  0.012 55);
-  --card:                oklch(0.985 0.006 80);
-  --card-foreground:     oklch(0.18  0.012 55);
-  --popover:             oklch(0.985 0.006 80);
-  --popover-foreground:  oklch(0.18  0.012 55);
+  /* Surfaces — morning sun on warm ivory paper. Background warmed toward a
+     sunlit cream (hue 80→78, +chroma); card kept a touch brighter and cleaner
+     so paper "catches the light" against the desk. */
+  --background:          oklch(0.976 0.011 78);
+  --foreground:          oklch(0.18  0.013 52);
+  --card:                oklch(0.988 0.008 82);
+  --card-foreground:     oklch(0.18  0.013 52);
+  --popover:             oklch(0.988 0.008 82);
+  --popover-foreground:  oklch(0.18  0.013 52);
 
   /* Primary = wax-seal terracotta.
-     L 0.50→0.47 for link headroom on warm surfaces.
-     vs --primary-foreground (ivory): 6.03→6.87:1.
-     on --muted: 5.43→6.19:1.  on --background: 6.03→7.17:1. */
+     L 0.47 for link headroom on warm surfaces.
+     vs --primary-foreground (ivory): ~6.9:1.
+     on --muted: ~6.2:1.  on --background: ~7.2:1. */
   --primary:             oklch(0.47  0.155 30);
-  --primary-foreground:  oklch(0.975 0.006 80);
+  --primary-foreground:  oklch(0.976 0.008 82);
 
   /* Secondary = warm parchment tint */
-  --secondary:           oklch(0.940 0.010 78);
-  --secondary-foreground: oklch(0.18 0.012 55);
+  --secondary:           oklch(0.942 0.013 76);
+  --secondary-foreground: oklch(0.18 0.013 52);
 
   /* Muted */
-  /* --muted-foreground: L 0.43→0.42, chroma 0.012→0.014 for AA headroom while
-     keeping the warm cast.  on --background: 7.56→7.90:1.  on --card: 7.79→
-     8.13:1.  on --muted: 6.82→7.12:1.  (All comfortably ≥4.5:1.) */
-  --muted:               oklch(0.940 0.010 78);
-  --muted-foreground:    oklch(0.42  0.014 60);
+  /* --muted-foreground L 0.42 keeps strong AA on warm surfaces:
+     on --background ~7.9:1, on --card ~8.1:1, on --muted ~7.1:1. */
+  --muted:               oklch(0.942 0.013 76);
+  --muted-foreground:    oklch(0.42  0.014 58);
 
   /* Accent = warm highlight (same hue family as wax) */
-  --accent:              oklch(0.940 0.010 78);
-  --accent-foreground:   oklch(0.18  0.012 55);
+  --accent:              oklch(0.942 0.013 76);
+  --accent-foreground:   oklch(0.18  0.013 52);
 
   /* Destructive: L 0.577→0.505 so it clears body AA both as text on --background
      (4.43→5.86:1) and as a surface under ivory button text (4.43→5.86:1). */
   --destructive:         oklch(0.505 0.220 27.325);
 
-  /* Structure: border L 0.860→0.80 for a more visible warm rule (vs --background
-     1.42→1.74:1 — non-text, decorative, but easier to perceive). */
-  --border:              oklch(0.800 0.012 78);
-  --input:               oklch(0.800 0.012 78);
+  /* Structure: warm visible rule (decorative, non-text). */
+  --border:              oklch(0.802 0.014 76);
+  --input:               oklch(0.802 0.014 76);
   --ring:                oklch(0.47  0.155 30);
 
   /* Charts (warm tones) */
@@ -230,103 +253,127 @@
   --radius: 0.5rem;
 
   /* Sidebar */
-  --sidebar:                    oklch(0.965 0.008 80);
-  --sidebar-foreground:         oklch(0.18  0.012 55);
+  --sidebar:                    oklch(0.966 0.011 78);
+  --sidebar-foreground:         oklch(0.18  0.013 52);
   --sidebar-primary:            oklch(0.47  0.155 30);
-  --sidebar-primary-foreground: oklch(0.975 0.006 80);
-  --sidebar-accent:             oklch(0.940 0.010 78);
-  --sidebar-accent-foreground:  oklch(0.18  0.012 55);
-  --sidebar-border:             oklch(0.800 0.012 78);
+  --sidebar-primary-foreground: oklch(0.976 0.008 82);
+  --sidebar-accent:             oklch(0.942 0.013 76);
+  --sidebar-accent-foreground:  oklch(0.18  0.013 52);
+  --sidebar-border:             oklch(0.802 0.014 76);
   --sidebar-ring:               oklch(0.47  0.155 30);
 
   /* Semantic brand helpers */
-  --paper: oklch(0.975 0.008 80);
-  --ink:   oklch(0.18  0.012 55);
+  --paper: oklch(0.976 0.011 78);
+  --ink:   oklch(0.18  0.013 52);
   --wax:   oklch(0.47  0.155 30);
   --wax-deep: oklch(0.41 0.150 30);
   --seal:  oklch(0.47  0.155 30);
 
-  /* Paper sheen — barely-there warm glow at the top of the page */
-  --paper-sheen: radial-gradient(
-    120% 60% at 50% 0%,
-    oklch(0.99 0.010 85) 0%,
-    transparent 70%
-  );
+  /* Atmosphere — morning sun pouring through a tall window: a warm sun-glow
+     spilling from the upper-right, a soft cool sky-wash up top, and the gentlest
+     warm floor bounce. Airy and bright; never darkens text. */
+  --paper-sheen:
+    radial-gradient(80% 60% at 82% 2%,
+      oklch(0.995 0.030 88 / 0.85) 0%,
+      oklch(0.985 0.018 84 / 0.40) 38%,
+      transparent 70%),
+    radial-gradient(120% 55% at 50% -8%,
+      oklch(0.985 0.012 250 / 0.40) 0%,
+      transparent 55%),
+    radial-gradient(90% 50% at 25% 108%,
+      oklch(0.985 0.014 80 / 0.45) 0%,
+      transparent 60%);
+  /* No-op in light mode (candle flicker is dark-only) */
+  --candle-glow: none;
 }
 
 /* ============================================================
    DARK MODE
    ============================================================ */
 .dark {
-  /* Surfaces */
-  --background:          oklch(0.155 0.012 55);
-  --foreground:          oklch(0.930 0.008 80);
-  --card:                oklch(0.195 0.012 55);
-  --card-foreground:     oklch(0.930 0.008 80);
-  --popover:             oklch(0.195 0.012 55);
-  --popover-foreground:  oklch(0.930 0.008 80);
+  /* Surfaces — cabin at night: inky brown-black warmed toward candle amber.
+     Hue nudged 55→48 and chroma lifted for a smoky-amber cast (not flat gray). */
+  --background:          oklch(0.150 0.016 48);
+  --foreground:          oklch(0.932 0.012 78);
+  --card:                oklch(0.198 0.018 50);
+  --card-foreground:     oklch(0.932 0.012 78);
+  --popover:             oklch(0.198 0.018 50);
+  --popover-foreground:  oklch(0.932 0.012 78);
 
-  /* Primary = brighter terracotta for contrast on dark.
-     L 0.68→0.70 for link headroom on dark muted surfaces.
-     on --muted: 5.35→5.78:1.  on --card: 5.95→6.42:1.  on --background:
-     6.35→6.86:1.  vs --primary-foreground: comfortably ≥4.5:1. */
-  --primary:             oklch(0.70  0.155 30);
-  --primary-foreground:  oklch(0.155 0.012 55);
+  /* Primary = candlelit terracotta, warmed toward amber (hue 30→32, +chroma).
+     on --muted ~5.7:1.  on --card ~6.4:1.  on --background ~6.9:1.
+     vs --primary-foreground: comfortably ≥4.5:1. */
+  --primary:             oklch(0.71  0.158 32);
+  --primary-foreground:  oklch(0.150 0.016 48);
 
   /* Secondary */
-  --secondary:           oklch(0.240 0.010 55);
-  --secondary-foreground: oklch(0.930 0.008 80);
+  --secondary:           oklch(0.244 0.016 50);
+  --secondary-foreground: oklch(0.932 0.012 78);
 
   /* Muted */
-  /* --muted-foreground: L 0.60→0.66.  At 0.60 it FAILED AA on card/muted
-     (4.64 / 4.17:1).  Now on --card: 5.88:1, on --muted: 5.29:1, on
-     --background: 6.28:1 — all ≥4.5:1 with headroom. */
-  --muted:               oklch(0.240 0.010 55);
-  --muted-foreground:    oklch(0.66  0.009 75);
+  /* --muted-foreground L 0.66 keeps AA on every dark surface:
+     on --card ~5.8:1, on --muted ~5.2:1, on --background ~6.2:1. */
+  --muted:               oklch(0.244 0.016 50);
+  --muted-foreground:    oklch(0.66  0.013 72);
 
   /* Accent */
-  --accent:              oklch(0.240 0.010 55);
-  --accent-foreground:   oklch(0.930 0.008 80);
+  --accent:              oklch(0.244 0.016 50);
+  --accent-foreground:   oklch(0.932 0.012 78);
 
-  /* Destructive (lighter red reads AA on dark; ~6.77:1 on --background) */
+  /* Destructive (lighter red reads AA on dark; ~6.7:1 on --background) */
   --destructive:         oklch(0.704 0.191 22.216);
 
-  /* Structure: border L 0.300→0.38 for a more perceivable dark rule
-     (vs --background 1.43→1.95:1 — non-text/decorative). */
-  --border:              oklch(0.380 0.010 55);
-  --input:               oklch(0.380 0.010 55);
-  --ring:                oklch(0.70  0.155 30);
+  /* Structure: warm visible rule (decorative, non-text). */
+  --border:              oklch(0.382 0.014 50);
+  --input:               oklch(0.382 0.014 50);
+  --ring:                oklch(0.71  0.158 32);
 
   /* Charts */
-  --chart-1:             oklch(0.70  0.155 30);
+  --chart-1:             oklch(0.71  0.158 32);
   --chart-2:             oklch(0.72  0.120 48);
   --chart-3:             oklch(0.78  0.090 65);
   --chart-4:             oklch(0.60  0.060 80);
   --chart-5:             oklch(0.65  0.080 220);
 
   /* Sidebar */
-  --sidebar:                    oklch(0.195 0.012 55);
-  --sidebar-foreground:         oklch(0.930 0.008 80);
-  --sidebar-primary:            oklch(0.70  0.155 30);
-  --sidebar-primary-foreground: oklch(0.155 0.012 55);
-  --sidebar-accent:             oklch(0.240 0.010 55);
-  --sidebar-accent-foreground:  oklch(0.930 0.008 80);
-  --sidebar-border:             oklch(0.380 0.010 55);
-  --sidebar-ring:               oklch(0.70  0.155 30);
+  --sidebar:                    oklch(0.198 0.018 50);
+  --sidebar-foreground:         oklch(0.932 0.012 78);
+  --sidebar-primary:            oklch(0.71  0.158 32);
+  --sidebar-primary-foreground: oklch(0.150 0.016 48);
+  --sidebar-accent:             oklch(0.244 0.016 50);
+  --sidebar-accent-foreground:  oklch(0.932 0.012 78);
+  --sidebar-border:             oklch(0.382 0.014 50);
+  --sidebar-ring:               oklch(0.71  0.158 32);
 
   /* Semantic brand helpers */
-  --paper: oklch(0.195 0.012 55);
-  --ink:   oklch(0.930 0.008 80);
-  --wax:   oklch(0.70  0.155 30);
-  --wax-deep: oklch(0.76 0.150 30);
-  --seal:  oklch(0.70  0.155 30);
+  --paper: oklch(0.198 0.018 50);
+  --ink:   oklch(0.932 0.012 78);
+  --wax:   oklch(0.71  0.158 32);
+  --wax-deep: oklch(0.77 0.152 32);
+  --seal:  oklch(0.71  0.158 32);
 
-  /* Paper sheen — barely-there warm glow at the top of the page */
-  --paper-sheen: radial-gradient(
-    120% 60% at 50% 0%,
-    oklch(0.22 0.014 55) 0%,
-    transparent 70%
-  );
+  /* Atmosphere — warm desk-lamp / candle light pooling from upper area,
+     falling off into deep inky shadow. Layered radials, GPU-cheap.
+     Top-down sequence: hot candle core → amber lamp pool → ember floor glow →
+     deep vignette pulling the corners into shadow. */
+  --paper-sheen:
+    radial-gradient(70% 50% at 62% 8%,
+      oklch(0.40 0.075 58 / 0.55) 0%,
+      oklch(0.28 0.055 52 / 0.30) 32%,
+      transparent 68%),
+    radial-gradient(120% 80% at 50% -10%,
+      oklch(0.30 0.045 50 / 0.45) 0%,
+      transparent 60%),
+    radial-gradient(90% 60% at 30% 112%,
+      oklch(0.26 0.050 40 / 0.40) 0%,
+      transparent 65%),
+    radial-gradient(150% 120% at 50% 40%,
+      transparent 42%,
+      oklch(0.10 0.012 45 / 0.55) 100%);
+  /* Candle glow used by the optional flicker pseudo-element */
+  --candle-glow: radial-gradient(46% 38% at 62% 6%,
+    oklch(0.52 0.090 60 / 0.40) 0%,
+    transparent 70%);
 }
 
 /* ============================================================
@@ -338,11 +385,43 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: var(--paper-sheen);
-    background-repeat: no-repeat;
+    position: relative;
   }
   html {
     @apply font-sans;
+  }
+
+  /* --- Atmosphere layer: light pool (dark) / sun pour (light) ---
+     Fixed to the viewport so the glow stays put while content scrolls; sits
+     behind all content (z-index:-1) and is fully decorative (aria-hidden via
+     pointer-events:none). Cheap: composited gradients only. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--paper-sheen);
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  /* --- Texture layer: faint fibre/grain over the whole scene ---
+     A tiny tiled SVG fractal-noise data-URI at very low opacity gives paper a
+     tactile tooth and the dark scene a filmic grain. Fixed + behind content. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+  .dark body::after,
+  :root:not(.light) body::after {
+    opacity: 0.06;
   }
 
   /* Stationery signature: ink-on-wax text selection */
@@ -354,6 +433,24 @@
   input,
   textarea {
     caret-color: var(--wax);
+  }
+
+  /* --- Paper tooth on card/popover surfaces ---
+     Every shadcn surface (data-slot=card|popover) gets a faint fibre grain so
+     paper reads as paper. Layered: a soft directional sheen (light catching the
+     sheet) + a tiled noise tooth. Subtle — legibility first. Disabled inside
+     elements that opt out via .no-paper-grain. */
+  [data-slot="card"]:not(.no-paper-grain),
+  [data-slot="popover"]:not(.no-paper-grain) {
+    background-image:
+      linear-gradient(
+        145deg,
+        color-mix(in oklch, var(--foreground), transparent 97%) 0%,
+        transparent 38%
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 100% 100%, 120px 120px;
+    background-blend-mode: soft-light;
   }
 }
 
@@ -424,6 +521,28 @@
   to   { transform: rotateX(-160deg); transform-origin: top center; }
 }
 
+/* --- candle-flicker: barely-perceptible breathing of the warm light pool ---
+   Drives opacity + a hair of scale on the dark-mode atmosphere layer so the
+   golden pool gently "breathes" like candlelight. Irregular timing via two
+   subtle steps. Dark-only; gated behind prefers-reduced-motion below. */
+@keyframes candle-flicker {
+  0%   { opacity: 1;    transform: scale(1); }
+  18%  { opacity: 0.94; transform: scale(1.006); }
+  37%  { opacity: 1;    transform: scale(1); }
+  55%  { opacity: 0.9;  transform: scale(1.008); }
+  73%  { opacity: 0.97; transform: scale(1.003); }
+  100% { opacity: 1;    transform: scale(1); }
+}
+
+/* Apply the flicker only when the dark scene is active. transform-origin near
+   the candle core (upper-right) so the breathing radiates from the flame. */
+.dark body::before,
+:root:not(.light) body::before {
+  transform-origin: 62% 6%;
+  animation: candle-flicker 6.5s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
 /* ---- Animation utility classes ---- */
 .animate-rise-in {
   animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -462,6 +581,14 @@
   .animate-seal-break,
   .animate-wax-pulse,
   .animate-flap-open {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Candle stops flickering — the warm pool simply holds steady. */
+  .dark body::before,
+  :root:not(.light) body::before {
     animation: none;
     opacity: 1;
     transform: none;

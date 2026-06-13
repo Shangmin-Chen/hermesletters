@@ -11,13 +11,22 @@ export default async function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <div className="flex flex-col items-center text-center space-y-10 max-w-md w-full">
-        {/* Brand mark */}
+        {/* Brand mark — the envelope rests in a warm pool of light */}
         <div className="animate-rise-in flex flex-col items-center gap-5">
-          <Envelope
-            state="sealed"
-            className="w-20 h-20 text-ink animate-wax-pulse"
+          <span
             aria-hidden
-          />
+            className="relative inline-flex items-center justify-center"
+          >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -inset-8 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--wax),transparent_72%),transparent)] blur-xl"
+            />
+            <Envelope
+              state="sealed"
+              className="relative w-20 h-20 text-ink animate-wax-pulse"
+              aria-hidden
+            />
+          </span>
           <span className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Send a Letter
           </span>
