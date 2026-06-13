@@ -9,19 +9,22 @@ import { slugify } from "@/lib/slugify";
 
 interface OnboardingFormProps {
   emailLocalPart: string;
+  next?: string | null;
 }
 
-export function OnboardingForm({ emailLocalPart }: OnboardingFormProps) {
+export function OnboardingForm({ emailLocalPart, next }: OnboardingFormProps) {
   const [state, formAction, pending] = useActionState(onboardingAction, null);
   const [handlePreview, setHandlePreview] = useState("");
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-8">
       <form action={formAction} className="space-y-5" noValidate>
+        {next && <input type="hidden" name="next" value={next} />}
+
         {state?.error && (
           <div
             role="alert"
-            className="rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
             {state.error}
           </div>

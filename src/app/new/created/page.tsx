@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { CopyLinkButton } from "./copy-link-button";
+import { CreatedPageClient } from "./created-page-client";
 import { requireProfile } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Envelope } from "@/components/brand/Envelope";
@@ -66,11 +66,11 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
             <p className="font-mono text-sm break-all text-ink">{fullUrl}</p>
           </div>
 
-          {/* Copy button */}
-          <CopyLinkButton fullUrl={fullUrl} />
+          {/* Copy button — client wrapper owns beforeunload + persistent copied state */}
+          <CreatedPageClient fullUrl={fullUrl} />
 
           {/* Warning notice — using brand tokens instead of raw amber */}
-          <div className="rounded-lg border border-wax/30 bg-wax/12 px-4 py-4 space-y-1">
+          <div className="rounded-lg border border-wax/30 bg-wax/10 px-4 py-4 space-y-1">
             <p className="text-sm font-semibold text-ink">
               This link won&apos;t appear again.
             </p>
@@ -80,12 +80,18 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
             </p>
           </div>
 
-          <div className="text-center">
+          <div className="flex flex-col items-center gap-3 text-center">
             <Link
               href="/new"
               className="text-sm text-muted-foreground underline underline-offset-4 hover:text-ink transition-colors min-h-[44px] inline-flex items-center"
             >
               Write another letter
+            </Link>
+            <Link
+              href="/dashboard"
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-ink transition-colors min-h-[44px] inline-flex items-center"
+            >
+              Back to dashboard
             </Link>
           </div>
         </div>

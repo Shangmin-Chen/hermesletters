@@ -5,26 +5,27 @@ import { Button } from "@/components/ui/button";
 
 interface CopyLinkButtonProps {
   fullUrl: string;
+  onCopied?: () => void;
 }
 
-export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
+export function CopyLinkButton({ fullUrl, onCopied }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(fullUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
     } catch {
+      // Fallback for browsers without clipboard API
       const input = document.createElement("input");
       input.value = fullUrl;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
     }
+    // Persistent — never reverts to "Copy link"
+    setCopied(true);
+    onCopied?.();
   }
 
   return (
@@ -38,8 +39,15 @@ export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
       }
       type="button"
       aria-label={copied ? "Link copied to clipboard" : "Copy shareable link"}
+      aria-pressed={copied}
     >
-      {copied ? "Copied to clipboard" : "Copy link"}
+      {copied ? (
+        <span className="flex items-center gap-2">
+          <span aria-hidden>✓</span> Copied
+        </span>
+      ) : (
+        "Copy link"
+      )}
     </Button>
   );
 }

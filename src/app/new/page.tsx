@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { NewLetterForm } from "./new-letter-form";
@@ -7,6 +8,16 @@ export default async function NewLetterPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-start px-4 py-10 sm:py-16">
+      {/* Back to dashboard */}
+      <div className="w-full max-w-xl mb-6">
+        <Link
+          href="/dashboard"
+          className="text-sm text-muted-foreground hover:text-ink transition-colors"
+        >
+          &larr; Dashboard
+        </Link>
+      </div>
+
       {/* Page header */}
       <header className="mb-8 flex flex-col items-center gap-2 animate-rise-in">
         <Wordmark size="sm" className="text-muted-foreground" />

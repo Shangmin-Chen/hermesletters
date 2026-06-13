@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugify, isValidHandle } from "@/lib/slugify";
 import { RESERVED_HANDLES } from "@/lib/reserved-handles";
+import { isSafeLocalPath } from "@/lib/safe-path";
 
 const MAX_DISPLAY_NAME_LENGTH = 80;
 
@@ -15,6 +16,9 @@ export async function onboardingAction(
 ): Promise<ActionState> {
   const rawHandle = formData.get("handle") as string;
   const rawDisplayName = formData.get("display_name") as string;
+  const rawNext = formData.get("next");
+  const next =
+    typeof rawNext === "string" && isSafeLocalPath(rawNext) ? rawNext : null;
 
   const handle = slugify(rawHandle ?? "");
 
@@ -62,5 +66,7 @@ export async function onboardingAction(
     return { error: error.message };
   }
 
-  redirect("/dashboard");
+  // Profile created — return the user to their letter if a safe `next` was
+  // threaded through the registration chain, else the dashboard.
+  redirect(next ?? "/dashboard");
 }

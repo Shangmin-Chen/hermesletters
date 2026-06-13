@@ -7,16 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUpAction } from "./actions";
 
-export function SignupForm() {
+export function SignupForm({ next }: { next?: string | null }) {
   const [state, formAction, pending] = useActionState(signUpAction, null);
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-8">
       <form action={formAction} className="space-y-5" noValidate>
+        {next && <input type="hidden" name="next" value={next} />}
+
         {state?.error && (
           <div
             role="alert"
-            className="rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
             {state.error}
           </div>

@@ -1,13 +1,24 @@
 import { redirect } from "next/navigation";
 import { getUser, getProfile } from "@/lib/auth";
+import { isSafeLocalPath } from "@/lib/safe-path";
 import { SignupForm } from "./SignupForm";
 import { Wordmark } from "@/components/brand/Wordmark";
 
-export default async function SignupPage() {
+interface SignupPageProps {
+  searchParams: Promise<{ next?: string }>;
+}
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const { next: rawNext } = await searchParams;
+  const next = rawNext && isSafeLocalPath(rawNext) ? rawNext : null;
+
   const user = await getUser();
   if (user) {
     const profile = await getProfile();
-    redirect(profile ? "/dashboard" : "/onboarding");
+    if (profile) {
+      redirect(next ?? "/dashboard");
+    }
+    redirect(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
   }
 
   return (
@@ -22,7 +33,7 @@ export default async function SignupPage() {
             Create your account — it only takes a moment.
           </p>
         </header>
-        <SignupForm />
+        <SignupForm next={next} />
       </div>
     </main>
   );

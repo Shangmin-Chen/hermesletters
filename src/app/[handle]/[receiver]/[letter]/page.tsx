@@ -15,6 +15,7 @@ import { Envelope } from "@/components/brand/Envelope";
 import { AnswerInput } from "./AnswerInput";
 import { KeepButton } from "./KeepButton";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { Countdown } from "./Countdown";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +43,51 @@ async function mintSignedUrl(storagePath: string): Promise<string | null> {
     .createSignedUrl(storagePath, 60 * 60); // 1 hour
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
+}
+
+/**
+ * Title-case a receiver slug for the greeting.
+ *
+ * Blunt CSS `capitalize` mangles real names — it lowercases interior letters
+ * and only uppercases the first letter of each space-separated chunk, so
+ * "o-brien" → "O Brien" and "mcdonald" → "Mcdonald". This handles slugs more
+ * gracefully: it splits on spaces AND hyphens (preserving hyphens), capitalizes
+ * each part, and applies a couple of common Anglo-Irish/Scots name patterns
+ * (O'Brien, McDonald, MacLeod) that readers expect to see.
+ *
+ * Stays safe for arbitrary slugs — anything it doesn't recognize just gets
+ * first-letter capitalization.
+ */
+function titleCaseName(slug: string): string {
+  const cap = (w: string) =>
+    w.length === 0 ? w : w[0].toUpperCase() + w.slice(1).toLowerCase();
+
+  const stylizeWord = (word: string): string => {
+    const lower = word.toLowerCase();
+
+    // O'brien / obrien → O'Brien
+    if (/^o'?[a-z]{2,}$/.test(lower)) {
+      const rest = lower.replace(/^o'?/, "");
+      return `O'${cap(rest)}`;
+    }
+    // mcdonald → McDonald
+    if (/^mc[a-z]{2,}$/.test(lower)) {
+      return `Mc${cap(lower.slice(2))}`;
+    }
+    // macleod → MacLeod (avoid short words like "mac" itself)
+    if (/^mac[a-z]{3,}$/.test(lower)) {
+      return `Mac${cap(lower.slice(3))}`;
+    }
+    return cap(word);
+  };
+
+  return slug
+    .split(" ")
+    .map((chunk) =>
+      // Preserve hyphens between parts while casing each part.
+      chunk.split("-").map(stylizeWord).join("-")
+    )
+    .join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -178,8 +224,8 @@ function LockedView({
   senderHandle: string;
   receiverName: string;
 }) {
-  // receiverName is a slug ("maya-lin"); render it back as words for the greeting.
-  const receiverDisplay = receiverName.replace(/-/g, " ");
+  // receiverName is a slug ("maya-lin"); title-case it for the greeting.
+  const receiverDisplay = titleCaseName(receiverName);
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10">
@@ -195,7 +241,7 @@ function LockedView({
             </div>
 
             <div>
-              <h1 className="font-serif text-xl font-semibold text-foreground capitalize leading-snug">
+              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug">
                 {receiverDisplay}, you have a letter.
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -258,9 +304,16 @@ function UnsealedView({
 
           {/* Open-envelope header — envelope in open state */}
           <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
+            {/*
+             * Seal-break beat: the wax cracks (animate-seal-break) before the
+             * flap swings open (animate-flap-open), so the "it's really you"
+             * moment lands. Both keyframes live in globals.css.
+             */}
             <div style={{ perspective: "600px" }}>
-              <div className="animate-flap-open">
-                <Envelope state="open" className="w-20 h-20 text-ink" aria-hidden />
+              <div className="animate-seal-break">
+                <div className="animate-flap-open">
+                  <Envelope state="open" className="w-20 h-20 text-ink" aria-hidden />
+                </div>
               </div>
             </div>
             <div>
@@ -306,8 +359,8 @@ function UnsealedView({
               This letter is yours until{" "}
               <strong className="text-foreground">
                 <LocalDateTime date={expiresAt} />
-              </strong>
-              .{" "}
+              </strong>{" "}
+              (<Countdown expiresAt={expiresAt} />).{" "}
               Keep it, and it stays with you for good.
             </p>
 
@@ -330,7 +383,8 @@ function UnsealedView({
               </p>
             )}
 
-            {/* Branch 3: not logged in → link to login with next= so they return here */}
+            {/* Branch 3: not logged in → offer both log in and sign up, each
+                carrying next= so they land back here afterward */}
             {!isLoggedIn && (
               <p className="text-sm text-muted-foreground">
                 <Link
@@ -339,7 +393,14 @@ function UnsealedView({
                 >
                   Log in to keep it
                 </Link>{" "}
-                — your progress is preserved while you sign in.
+                or{" "}
+                <Link
+                  href={`/signup?next=${encodeURIComponent(letterPath)}`}
+                  className="underline font-medium text-foreground hover:text-wax transition-colors"
+                >
+                  sign up to keep it
+                </Link>{" "}
+                — your progress is preserved while you do.
               </p>
             )}
           </div>

@@ -5,7 +5,6 @@ import { letters } from "@/db/schema";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Envelope } from "@/components/brand/Envelope";
+import { SignOutButton } from "./sign-out-button";
 
 export const dynamic = "force-dynamic";
 
@@ -59,16 +59,7 @@ export default async function DashboardPage() {
               <span className="text-xs text-muted-foreground font-mono">
                 @{profile.handle}
               </span>
-              <form action="/auth/signout" method="POST">
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  Sign out
-                </Button>
-              </form>
+              <SignOutButton />
             </div>
           </div>
 
@@ -81,15 +72,18 @@ export default async function DashboardPage() {
               Write something only one person will ever read — or revisit a
               letter that&apos;s already yours.
             </CardDescription>
+            <p className="text-xs text-muted-foreground/70 leading-relaxed pt-0.5">
+              By design, letters you send leave no trace here. Fire and forget — just the way a real letter works.
+            </p>
           </CardHeader>
 
           <CardContent className="space-y-3 pb-6">
-            {/* Primary CTA */}
+            {/* Primary CTA — variant:"ghost" avoids conflicting hover:bg-primary/80 from "default" */}
             <Link
               href="/new"
               className={cn(
-                buttonVariants({ variant: "default" }),
-                "w-full inline-flex justify-center gap-2 bg-wax text-primary-foreground hover:bg-wax-deep transition-colors active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                buttonVariants({ variant: "ghost" }),
+                "w-full inline-flex justify-center gap-2 min-h-[44px] bg-wax text-primary-foreground hover:bg-wax-deep hover:text-primary-foreground transition-colors active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
             >
               <Envelope state="sealed" className="w-4 h-4 shrink-0" aria-hidden />

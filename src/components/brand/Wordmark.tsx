@@ -5,6 +5,9 @@ export interface WordmarkProps {
   /** Size variant — controls overall scale */
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** When set, renders the wordmark as an anchor pointing here (e.g. "/" for a
+   *  home link). When omitted, renders a non-interactive <span> as before. */
+  href?: string;
 }
 
 const sizeMap = {
@@ -24,12 +27,15 @@ const sizeMap = {
  *   <Wordmark />                        // default md, inherits color
  *   <Wordmark size="lg" />              // large header lockup
  *   <Wordmark className="text-ink" />   // explicit ink color
+ *   <Wordmark href="/" />               // renders as a home link
  */
-export function Wordmark({ size = "md", className = "" }: WordmarkProps) {
+export function Wordmark({ size = "md", className = "", href }: WordmarkProps) {
   const s = sizeMap[size];
+  const Tag = href ? "a" : "span";
 
   return (
-    <span
+    <Tag
+      {...(href ? { href } : {})}
       className={`inline-flex items-center ${s.gap} ${className}`}
       aria-label="Send a Letter"
     >
@@ -44,7 +50,7 @@ export function Wordmark({ size = "md", className = "" }: WordmarkProps) {
       >
         Send a Letter
       </span>
-    </span>
+    </Tag>
   );
 }
 

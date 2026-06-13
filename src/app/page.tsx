@@ -43,8 +43,8 @@ export default async function Home() {
             <Link
               href={profile ? "/dashboard" : "/onboarding"}
               className={cn(
-                buttonVariants({ variant: "default" }),
-                "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
+                buttonVariants({ variant: "ghost" }),
+                "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 min-h-[44px] text-base font-medium rounded-full shadow-sm inline-flex items-center"
               )}
             >
               Open my letters
@@ -54,8 +54,8 @@ export default async function Home() {
               <Link
                 href="/signup"
                 className={cn(
-                  buttonVariants({ variant: "default" }),
-                  "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 text-base font-medium rounded-full shadow-sm"
+                  buttonVariants({ variant: "ghost" }),
+                  "bg-wax text-primary-foreground hover:bg-wax-deep transition-colors px-8 py-2.5 min-h-[44px] text-base font-medium rounded-full shadow-sm inline-flex items-center"
                 )}
               >
                 Write your first letter

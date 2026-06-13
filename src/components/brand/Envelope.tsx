@@ -9,6 +9,11 @@ export interface EnvelopeProps {
   /** When true, marks the SVG as purely decorative (aria-hidden="true").
    *  Also drops role/aria-labelledby so screen readers skip it entirely. */
   "aria-hidden"?: boolean;
+  /** When true (and state="sealed"), applies the idle breathing pulse to ONLY
+   *  the wax-seal group — the ink line art stays still. The seal group scales
+   *  in place (transform-origin at the seal center). Additive: call sites that
+   *  wrap the whole SVG in `.animate-wax-pulse` keep working unchanged. */
+  animateSeal?: boolean;
 }
 
 /**
@@ -16,18 +21,23 @@ export interface EnvelopeProps {
  *
  * Uses `currentColor` for ink lines so it inherits text color in any context.
  * The wax-seal circle uses `var(--wax)` directly so it is always terracotta.
- * Pair with `.animate-seal-break` (on the seal element) or `.animate-flap-open`
- * (on the SVG itself) for the unlock reveal.
+ *
+ * The wax seal lives in its own `<g data-seal>` group (transform-origin at the
+ * seal center). Apply `.animate-seal-break` to that group for the unlock pop,
+ * or pass `animateSeal` for the idle breathing pulse on the seal alone. Use
+ * `.animate-flap-open` on the SVG for the flap-open reveal.
  *
  * @example
  *   <Envelope state="sealed" className="w-24 h-24" />
  *   <Envelope state="open"   className="w-24 h-24 text-ink" />
- *   <Envelope state="sealed" aria-hidden />   // decorative — fully hidden
+ *   <Envelope state="sealed" animateSeal />    // seal-only breathing pulse
+ *   <Envelope state="sealed" aria-hidden />    // decorative — fully hidden
  */
 export function Envelope({
   state = "sealed",
   className = "",
   "aria-hidden": ariaHidden,
+  animateSeal = false,
 }: EnvelopeProps) {
   const uid = useId();
   const titleId = `${uid}-title`;
@@ -160,6 +170,18 @@ export function Envelope({
             fill="none"
           />
 
+          {/* Wax-seal group — independently targetable so animations affect only
+              the seal, not the ink line art. transform-origin set to the seal
+              center (cx 48, cy 49) so it scales/rotates in place.
+                • `.animate-seal-break` (applied by the letter page at unlock)
+                  cracks/pops this group.
+                • `animateSeal` opts into the idle `.animate-wax-pulse` breathing
+                  on this group alone. */}
+          <g
+            className={animateSeal ? "animate-wax-pulse" : undefined}
+            style={{ transformOrigin: "48px 49px", transformBox: "fill-box" }}
+            data-seal=""
+          >
           {/* Wax seal — terracotta circle at the flap-fold intersection */}
           <circle
             cx="48"
@@ -200,6 +222,7 @@ export function Envelope({
             fill="var(--primary-foreground)"
             opacity="0.65"
           />
+          </g>
         </>
       )}
     </svg>
