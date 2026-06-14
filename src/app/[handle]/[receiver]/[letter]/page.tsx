@@ -13,6 +13,7 @@ import { getUser, getProfile } from "@/lib/auth";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
 import { AnswerInput } from "./AnswerInput";
+import { RevealOnce } from "./RevealOnce";
 import { KeepButton } from "./KeepButton";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { Countdown } from "./Countdown";
@@ -228,49 +229,48 @@ function LockedView({
   const receiverDisplay = titleCaseName(receiverName);
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md animate-rise-in">
-        {/* Card — stationery feel */}
-        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
+    // The whole scene sits on the desk — the atmosphere layer (body::before sun
+    // pour / candle pool) reads as the surface. We drop the boxy card: the
+    // sealed envelope rests directly on the desk, with the prompt below it.
+    <main className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md animate-rise-in flex flex-col items-center text-center">
 
-          {/* Header flap — envelope icon with wax-pulse + personal greeting */}
-          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
-            {/* Sealed envelope with wax-pulse breathing on the seal */}
-            <div className="animate-wax-pulse">
-              <Envelope state="sealed" className="w-20 h-20 text-ink" aria-hidden />
-            </div>
+        {/* Sealed envelope on the desk — wax seal breathing (idle pulse) */}
+        <div className="animate-wax-pulse drop-shadow-[0_8px_24px_oklch(0_0_0/0.18)]">
+          <Envelope state="sealed" className="w-24 h-24 text-ink" aria-hidden />
+        </div>
 
-            <div>
-              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug">
-                {receiverDisplay}, you have a letter.
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                from{" "}
-                <span className="font-mono text-foreground/80">@{senderHandle}</span>
-              </p>
-            </div>
+        {/* Greeting */}
+        <div className="mt-6">
+          <h1 className="font-serif text-2xl font-semibold text-foreground leading-snug tracking-tight">
+            {receiverDisplay}, you have a letter.
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            from{" "}
+            <span className="font-mono text-foreground/80">@{senderHandle}</span>
+          </p>
+        </div>
+
+        {/* The shared-secret prompt — sits on a faint paper inset so it reads as
+            a note pinned to the envelope, not a UI panel. */}
+        <div className="mt-8 w-full rounded-2xl border border-border/70 bg-card/70 px-6 py-7 shadow-sm flex flex-col items-center gap-6">
+          <div className="space-y-2">
+            <p className="text-xs text-wax uppercase tracking-[0.18em] font-medium">
+              Something only the two of you know
+            </p>
+            <p className="font-serif text-lg text-foreground leading-relaxed">
+              {question}
+            </p>
           </div>
 
-          {/* Body — the shared secret prompt */}
-          <div className="px-6 py-8 flex flex-col items-center gap-6">
-            <div className="text-center space-y-2">
-              <p className="text-xs text-wax uppercase tracking-widest font-medium">
-                Something only the two of you know
-              </p>
-              <p className="font-serif text-lg text-foreground leading-relaxed">
-                {question}
-              </p>
-            </div>
-
-            {/* Underline input (client component — only receives safe fields) */}
-            <div className="w-full">
-              <AnswerInput letterId={letterId} answerShape={answerShape} />
-            </div>
+          {/* Underline input (client component — only receives safe fields) */}
+          <div className="w-full">
+            <AnswerInput letterId={letterId} answerShape={answerShape} />
           </div>
         </div>
 
         {/* Subtle footer hint */}
-        <p className="mt-4 text-center text-xs text-muted-foreground">
+        <p className="mt-5 text-xs text-muted-foreground">
           The letter opens once — for the person it was written to.
         </p>
       </div>
@@ -297,41 +297,62 @@ function UnsealedView({
   hasProfile: boolean;
   letterPath: string;
 }) {
-  return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl">
-        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden animate-rise-in">
-
-          {/* Open-envelope header — envelope in open state */}
-          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
-            {/*
-             * Seal-break beat: the wax cracks (animate-seal-break) before the
-             * flap swings open (animate-flap-open), so the "it's really you"
-             * moment lands. Both keyframes live in globals.css.
-             */}
-            <div style={{ perspective: "600px" }}>
-              <div className="animate-seal-break">
-                <div className="animate-flap-open">
-                  <Envelope state="open" className="w-20 h-20 text-ink" aria-hidden />
-                </div>
-              </div>
-            </div>
-            <div>
-              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug">
-                It&rsquo;s really you.
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Here&rsquo;s your letter.
-              </p>
-            </div>
+  // ── Envelope CHROME (the only animated element) ──────────────────────────
+  //
+  // This is server-rendered JSX handed to RevealOnce as its `chrome` slot. At
+  // rest it shows the open envelope; while RevealOnce sets data-reveal="playing"
+  // the .reveal-seal / .reveal-flap beats run (overlapping, ≤~800ms). It carries
+  // NO letter content — only the open-envelope header + greeting.
+  const chrome = (
+    <div className="text-center flex flex-col items-center gap-3 pb-8">
+      {/*
+       * Reveal beats: the seal cracks (.reveal-seal) while the flap swings open
+       * (.reveal-flap) — overlapped so the "it's really you" moment lands fast.
+       * Keyframes + the data-reveal gate live in globals.css. At rest (the
+       * SSR/initial state) this simply renders the open envelope, motionless.
+       */}
+      <div style={{ perspective: "600px" }}>
+        <div className="reveal-seal">
+          <div className="reveal-flap">
+            <Envelope state="open" className="w-24 h-24 text-ink" aria-hidden />
           </div>
+        </div>
+      </div>
+      <div>
+        <h1 className="font-serif text-2xl font-semibold text-foreground leading-snug tracking-tight">
+          It&rsquo;s really you.
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Here&rsquo;s your letter.
+        </p>
+      </div>
+    </div>
+  );
 
-          {/* Letter body — unfolds in */}
-          <div className="px-6 py-8 animate-unfold">
+  return (
+    // Letter-on-paper: the body lives on an actual sheet (bg-card, paper tooth
+    // via the global [data-slot=card] grain), resting on the desk — far less
+    // "UI card" than the old bordered panel with a tinted header strip.
+    <main className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-xl animate-rise-in">
+        {/*
+         * RevealOnce wraps the server-rendered children WITHOUT receiving `body`
+         * as a prop. The chrome (header) animates; everything below — the body,
+         * gallery, expiry footer, and ALL keep-flow branches — is passed as React
+         * `children`, server-rendered and readable from frame one (no
+         * animate-unfold). RevealOnce never re-fetches and never re-renders body.
+         */}
+        <RevealOnce letterId={letterId} chrome={chrome}>
+          {/* The letter sheet itself */}
+          <div
+            data-slot="card"
+            className="rounded-2xl border border-border/70 bg-card shadow-md px-7 py-9 sm:px-10 sm:py-11"
+          >
             {/*
              * body is plain text; React escapes it by default.
              * whitespace-pre-wrap preserves newlines without split/map
-             * (which would inject double newlines).
+             * (which would inject double newlines). Rendered at opacity 1 —
+             * the body must be readable the instant the page paints.
              */}
             <div className="font-serif text-foreground text-base leading-[1.85] tracking-[0.01em] whitespace-pre-wrap">
               {body}
@@ -339,7 +360,7 @@ function UnsealedView({
 
             {/* Image gallery */}
             {imageUrls.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 animate-rise-in">
+              <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {imageUrls.map((url, i) => (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -353,8 +374,8 @@ function UnsealedView({
             )}
           </div>
 
-          {/* Expiry + keep-flow footer */}
-          <div className="border-t border-border bg-muted/60 px-6 py-5 flex flex-col gap-3">
+          {/* Expiry + keep-flow footer — sits on the desk below the sheet. */}
+          <div className="mt-5 rounded-2xl border border-border/60 bg-muted/50 px-6 py-5 flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               This letter is yours until{" "}
               <strong className="text-foreground">
@@ -404,7 +425,7 @@ function UnsealedView({
               </p>
             )}
           </div>
-        </div>
+        </RevealOnce>
       </div>
     </main>
   );
@@ -414,28 +435,31 @@ function UnsealedView({
 
 function SealedView({ message }: { message: string }) {
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md animate-rise-in">
-        <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
-          {/* Sealed header */}
-          <div className="bg-muted border-b border-border px-6 pt-8 pb-6 text-center flex flex-col items-center gap-3">
-            <Envelope state="sealed" className="w-16 h-16 text-muted-foreground" aria-hidden />
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
-              Sealed
-            </p>
-          </div>
+    // Envelope-on-desk: a quiet, sealed envelope resting on the surface with the
+    // closing note beneath. No boxy card / tinted header strip.
+    <main className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md animate-rise-in flex flex-col items-center text-center gap-6">
+        <div className="flex flex-col items-center gap-3">
+          <Envelope
+            state="sealed"
+            className="w-20 h-20 text-muted-foreground drop-shadow-[0_6px_18px_oklch(0_0_0/0.14)]"
+            aria-hidden
+          />
+          <p className="text-xs text-muted-foreground uppercase tracking-[0.18em] font-medium">
+            Sealed
+          </p>
+        </div>
 
-          <div className="px-6 py-10 text-center flex flex-col items-center gap-4">
-            <h1 className="font-serif text-base text-foreground leading-relaxed">
-              {message}
-            </h1>
-            <Link
-              href="/"
-              className="text-sm text-muted-foreground underline hover:text-foreground transition-colors min-h-[44px] inline-flex items-center justify-center"
-            >
-              Back home
-            </Link>
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="font-serif text-base text-foreground leading-relaxed max-w-xs">
+            {message}
+          </h1>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground underline hover:text-foreground transition-colors min-h-[44px] inline-flex items-center justify-center"
+          >
+            Back home
+          </Link>
         </div>
       </div>
     </main>

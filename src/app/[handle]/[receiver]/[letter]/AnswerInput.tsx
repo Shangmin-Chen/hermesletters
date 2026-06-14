@@ -88,6 +88,18 @@ export function AnswerInput({ letterId, answerShape }: AnswerInputProps) {
           // Set terminal state BEFORE triggering refresh so the input and button
           // stay disabled through the re-render, preventing a second POST.
           setStatus("unlocked");
+          // One-shot "this open just happened" flag, read once by RevealOnce on
+          // the next server render so the envelope-chrome reveal plays exactly
+          // once. Set BEFORE router.refresh() so it's present when the refreshed
+          // UnsealedView mounts; RevealOnce clears it so a later reload within
+          // the grace window shows the letter instantly (no re-animation).
+          // Additive — must run alongside (not replace) the setStatus guard above.
+          try {
+            sessionStorage.setItem(`just-opened:${letterId}`, "1");
+          } catch {
+            // sessionStorage can throw (private mode / disabled storage);
+            // a missing flag just means the reveal renders its final state.
+          }
           // Cookie is now set server-side; reload so the Server Component
           // re-renders the unsealed letter using the claim cookie.
           router.refresh();

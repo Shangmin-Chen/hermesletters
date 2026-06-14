@@ -543,6 +543,87 @@
   will-change: opacity, transform;
 }
 
+/* --- COMPOSE FOLD (the "fold the letter into the envelope" gesture) ---------
+   These keyframes are DRIVEN BY THE WEB ANIMATIONS API in ComposeLetter.tsx
+   (element.animate(...)), not by CSS animation utility classes. They are authored
+   here so the geometry lives with the rest of the brand motion and so the
+   reduced-motion block below can disable any class-based fallback. The JS
+   orchestrator additionally gates the whole timeline behind a JS matchMedia
+   check (a CSS media query alone cannot stop a WAAPI animation).
+
+   The fold is a Z/roll fold of a STATIC 3-panel clone of the body text:
+     • middle panel is static (no rotation, no back face),
+     • the top panel folds DOWN  (transform-origin: bottom; rotateX(-180deg)),
+     • the bottom panel folds UP  (transform-origin: top;    rotateX(180deg)).
+   The "tuck" (translate + scale into the envelope mouth) is applied to the
+   perspective STAGE ancestor, never to a preserve-3d node (that would
+   re-flatten the depth). */
+
+/* Top panel: hinged at its BOTTOM edge, folds forward/down over the middle. */
+@keyframes fold-top {
+  from { transform: rotateX(0deg); }
+  to   { transform: rotateX(-180deg); }
+}
+
+/* Bottom panel: hinged at its TOP edge, folds forward/up over the middle. */
+@keyframes fold-bottom {
+  from { transform: rotateX(0deg); }
+  to   { transform: rotateX(180deg); }
+}
+
+/* Tuck: the folded packet shrinks and drops into the envelope mouth. Applied to
+   the perspective stage / an ancestor above the preserve-3d panels. */
+@keyframes tuck-into-envelope {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(46px) scale(0.34);
+    opacity: 0;
+  }
+}
+
+/* Flap-close: the reverse of flap-open. flap-open is `forwards` and can't be
+   class-reversed, so the close gets its own keyframe (used by the envelope flap
+   as the packet tucks in). */
+@keyframes flap-close {
+  from { transform: rotateX(-160deg); transform-origin: top center; }
+  to   { transform: rotateX(0deg);    transform-origin: top center; }
+}
+
+/* Shrink-drop fallback (reduced-motion / mobile / over-max-height): a single
+   cheap composite move with no 3-D, sharing the same `finished`→setStep tail. */
+@keyframes shrink-drop {
+  from { transform: translateY(0) scale(1);    opacity: 1; }
+  to   { transform: translateY(40px) scale(0.5); opacity: 0; }
+}
+
+/* --- READING REVEAL (the "it's really you" open) ----------------------------
+   RevealOnce.tsx toggles `data-reveal="playing"` on the chrome wrapper for one
+   brief play, then `data-reveal="done"` (final state) — JS-gated, including a
+   matchMedia reduced-motion check, since a CSS query can't stop a JS reveal.
+   These beats animate ONLY the envelope chrome; the letter body is server-
+   rendered at opacity 1 from frame one (no animate-unfold on the body). The
+   beats are CAPPED and OVERLAPPED to ≤~800ms total (see T5.4): the seal cracks
+   over the first ~360ms while the flap simultaneously begins swinging, the flap
+   finishing by ~720ms. No separate sequenced slide element. */
+
+/* Seal cracks/pops, then quickly settles — front-loaded so it overlaps the flap. */
+@keyframes reveal-seal-break {
+  0%   { transform: scale(1)    rotate(0deg); }
+  30%  { transform: scale(1.24) rotate(-7deg); }
+  60%  { transform: scale(0.9)  rotate(4deg); }
+  100% { transform: scale(0)    rotate(0deg); opacity: 0; }
+}
+
+/* Flap swings open. Runs concurrently with the seal break (overlap), so total
+   reveal time is the flap's duration, not seal+flap sequenced. */
+@keyframes reveal-flap-open {
+  from { transform: rotateX(0deg);    transform-origin: top center; }
+  to   { transform: rotateX(-160deg); transform-origin: top center; }
+}
+
 /* ---- Animation utility classes ---- */
 .animate-rise-in {
   animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -574,15 +655,74 @@
   perspective-origin: 50% 0%;
 }
 
+/* ---- Perspective stage for the COMPOSE FOLD ----
+   A SEPARATE perspective container from `.perspective-envelope` — the fold's
+   origin sits near the vertical middle of the sheet (~50% 40%), whereas the flap
+   context hinges at the top (50% 0%). Keeping them distinct avoids an
+   origin conflict between the two 3-D contexts. The tuck animation is applied to
+   THIS element (the stage), never to a mid-tree preserve-3d node. */
+.perspective-fold {
+  perspective: 1400px;
+  perspective-origin: 50% 40%;
+}
+
+/* The 3-panel clone stack keeps real depth so the folding panels read edge-on. */
+.fold-stack {
+  transform-style: preserve-3d;
+}
+
+/* ---- Reading-reveal chrome (RevealOnce data-reveal toggle) ----
+   At rest (data-reveal="done", the SSR/initial state) the chrome shows the open
+   envelope with NO animation. Only while data-reveal="playing" do the seal and
+   flap run their (overlapping, ≤~800ms) beats. The reveal is JS-gated in
+   RevealOnce (including reduced-motion), so these selectors carry no animation
+   unless the wrapper opts in. */
+[data-reveal="playing"] .reveal-seal {
+  animation: reveal-seal-break 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+[data-reveal="playing"] .reveal-flap {
+  /* Slight delay lets the crack read before the flap fully clears; both still
+     finish within ~0.72s, comfortably under the 800ms cap. */
+  animation: reveal-flap-open 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+}
+
 /* ---- Reduced-motion safety: disable all brand animations ---- */
 @media (prefers-reduced-motion: reduce) {
   .animate-rise-in,
   .animate-unfold,
   .animate-seal-break,
   .animate-wax-pulse,
-  .animate-flap-open {
+  .animate-flap-open,
+  .animate-fold-top,
+  .animate-fold-bottom,
+  .animate-tuck-into-envelope,
+  .animate-flap-close,
+  .animate-shrink-drop {
     animation: none;
     opacity: 1;
+    transform: none;
+  }
+
+  /* The compose-fold keyframes are normally WAAPI-driven and JS-gated, but list
+     them here too so any class-based usage collapses to instant under
+     reduced-motion. (The authoritative gate for the JS timeline is the
+     matchMedia check in ComposeLetter.tsx — a CSS query cannot cancel a running
+     WAAPI animation.) */
+  .fold-top,
+  .fold-bottom,
+  .tuck-into-envelope,
+  .flap-close,
+  .shrink-drop {
+    animation: none;
+    transform: none;
+  }
+
+  /* Reading-reveal chrome: even if `data-reveal="playing"` were somehow set
+     (RevealOnce's JS gate already prevents this under reduced motion), collapse
+     the beats to the final state. */
+  [data-reveal] .reveal-seal,
+  [data-reveal] .reveal-flap {
+    animation: none;
     transform: none;
   }
 

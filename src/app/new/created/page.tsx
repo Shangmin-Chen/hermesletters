@@ -42,25 +42,30 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg animate-rise-in space-y-8">
-        {/* Header */}
+        {/* Header — your sealed letter, resting on the desk, ready to hand off */}
         <header className="flex flex-col items-center gap-4 text-center">
-          <Envelope state="sealed" className="w-16 h-16 text-ink animate-wax-pulse" aria-hidden />
+          <Envelope
+            state="sealed"
+            className="w-20 h-20 text-ink animate-wax-pulse drop-shadow-[0_8px_24px_oklch(0_0_0/0.18)]"
+            aria-hidden
+          />
           <Wordmark size="sm" className="text-muted-foreground" />
           <div className="space-y-1.5">
             <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-ink tracking-tight">
               It&apos;s sealed.
             </h1>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Share this link with them. That&apos;s all you need to do.
+              Hand this link to them — that&apos;s all it takes. The letter waits,
+              sealed, until they open it.
             </p>
           </div>
         </header>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-6 space-y-6">
-          {/* URL display */}
-          <div className="rounded-lg bg-muted/60 border border-border px-4 py-4 space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {/* The sealed letter, ready to hand off */}
+        <div className="rounded-2xl border border-border/70 bg-card shadow-md px-6 py-7 space-y-6">
+          {/* URL display — the address slip on the envelope */}
+          <div className="rounded-xl bg-muted/50 border border-border/70 px-4 py-4 space-y-1.5">
+            <p className="text-xs font-medium text-wax uppercase tracking-[0.16em]">
               Their link
             </p>
             <p className="font-mono text-sm break-all text-ink">{fullUrl}</p>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { Wordmark } from "@/components/brand/Wordmark";
-import { NewLetterForm } from "./new-letter-form";
+import { ComposeLetter } from "./ComposeLetter";
 
 export default async function NewLetterPage() {
   const profile = await requireProfile();
@@ -32,7 +32,18 @@ export default async function NewLetterPage() {
       {/* Form card */}
       <div className="w-full max-w-xl animate-rise-in" style={{ animationDelay: "60ms" }}>
         <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-8 sm:px-8">
-          <NewLetterForm senderHandle={profile.handle as string} />
+          {/* No-JS hint: the compose ritual is irreducibly client-driven (draft
+              autosave, image previews, slug preview, the fold gesture). With JS
+              off, surface a plain message instead of a half-broken form. */}
+          <noscript>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Writing a letter needs JavaScript enabled — it saves your draft,
+              previews photos, and folds the letter into its envelope as you go.
+              Please turn JavaScript on and reload this page.
+            </p>
+          </noscript>
+
+          <ComposeLetter senderHandle={profile.handle as string} />
         </div>
       </div>
     </main>
