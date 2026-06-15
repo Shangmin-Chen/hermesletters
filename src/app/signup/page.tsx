@@ -1,18 +1,28 @@
 import { redirect } from "next/navigation";
 import { getUser, getProfile } from "@/lib/auth";
+import { isSafeLocalPath } from "@/lib/safe-path";
 import { SignupForm } from "./SignupForm";
 
-export default async function SignupPage() {
+interface SignupPageProps {
+  searchParams: Promise<{ next?: string }>;
+}
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const { next: rawNext } = await searchParams;
+  const next = rawNext && isSafeLocalPath(rawNext) ? rawNext : null;
+
   const user = await getUser();
   if (user) {
-    // Fix 7: route authenticated users based on profile state
     const profile = await getProfile();
-    redirect(profile ? "/dashboard" : "/onboarding");
+    if (profile) {
+      redirect(next ?? "/dashboard");
+    }
+    redirect(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
   }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <SignupForm />
+      <SignupForm next={next} />
     </main>
   );
 }

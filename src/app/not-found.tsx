@@ -1,29 +1,33 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { Envelope } from "@/components/brand/Envelope";
 
 export default function NotFound() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
-      <div className="w-full max-w-md text-center">
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
-          <div className="bg-neutral-100 border-b border-neutral-200 px-6 py-4 text-center">
-            <span className="text-2xl" role="img" aria-label="Not found">
-              ✉
-            </span>
-            <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wider font-medium">
-              Letter Not Found
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm animate-rise-in space-y-8 text-center">
+        <div className="flex flex-col items-center gap-4">
+          <Envelope state="open" className="w-16 h-16 text-ink" aria-hidden />
+          <Wordmark size="sm" className="text-muted-foreground" />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-6 py-8 space-y-5">
+          <div className="space-y-2">
+            <h1 className="font-serif text-xl font-semibold text-ink tracking-tight">
+              This letter got lost
+            </h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We couldn&apos;t find what you were looking for — the link may be wrong,
+              or the letter may have already been opened.
             </p>
           </div>
-          <div className="px-6 py-10 flex flex-col items-center gap-4">
-            <p className="text-neutral-600 text-base">
-              This letter doesn&rsquo;t exist, or the link may be incorrect.
-            </p>
-            <Link
-              href="/"
-              className="text-sm underline text-neutral-500 hover:text-neutral-800"
-            >
-              Go home
-            </Link>
-          </div>
+
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-ink transition-colors min-h-[44px] inline-flex items-center"
+          >
+            Back home
+          </Link>
         </div>
       </div>
     </main>

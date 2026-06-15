@@ -4,11 +4,16 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireProfile } from "@/lib/auth";
 import { slugify } from "@/lib/slugify";
+import { bodyOk, slugFieldOk, secretOk, type FieldKey } from "@/lib/letter-validation";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 
-export type CreateLetterState = { error?: string } | null;
+// The return type gains an optional `field` discriminator so the client
+// orchestrator can map an error back to the compose step that owns it (e.g. the
+// duplicate-name 23505 collision, which is only detectable server-side, routes
+// to the address step). The FormData INPUT contract is unchanged.
+export type CreateLetterState = { error: string; field?: FieldKey } | null;
 
 // ── Magic-byte image validation ──────────────────────────────────────────────
 // Reads the first 12 bytes of a file and determines the real MIME type.
@@ -81,21 +86,36 @@ export async function createLetterAction(
   const rawQuestion = (formData.get("question") as string | null) ?? "";
   const rawAnswer = (formData.get("answer") as string | null) ?? "";
 
-  if (!rawReceiverName.trim()) return { error: "Receiver name is required." };
-  if (!rawLetterName.trim()) return { error: "Letter name is required." };
-  if (!rawBody.trim()) return { error: "Letter body is required." };
-  if (!rawQuestion.trim()) return { error: "Security question is required." };
-  if (!rawAnswer.trim()) return { error: "Answer is required." };
+  // Shared predicates (letter-validation.ts) keep these checks in lockstep with
+  // the client step-gates. Each early return is tagged with its owning field so
+  // the orchestrator can jump to the right step.
+  if (!slugFieldOk(rawReceiverName)) {
+    return rawReceiverName.trim()
+      ? {
+          error:
+            "Receiver name produced an invalid slug — use letters, numbers, or spaces.",
+          field: "receiver",
+        }
+      : { error: "Receiver name is required.", field: "receiver" };
+  }
+  if (!slugFieldOk(rawLetterName)) {
+    return rawLetterName.trim()
+      ? {
+          error:
+            "Letter name produced an invalid slug — use letters, numbers, or spaces.",
+          field: "letter",
+        }
+      : { error: "Letter name is required.", field: "letter" };
+  }
+  if (!bodyOk(rawBody)) return { error: "Letter body is required.", field: "body" };
+  if (!secretOk(rawQuestion, rawAnswer)) {
+    return rawQuestion.trim()
+      ? { error: "Answer is required.", field: "answer" }
+      : { error: "Security question is required.", field: "question" };
+  }
 
   const receiverName = slugify(rawReceiverName);
   const letterName = slugify(rawLetterName);
-
-  if (!receiverName) {
-    return { error: "Receiver name produced an invalid slug — use letters, numbers, or spaces." };
-  }
-  if (!letterName) {
-    return { error: "Letter name produced an invalid slug — use letters, numbers, or spaces." };
-  }
 
   // ── Step 3: Read & validate all image bytes/types BEFORE any DB insert ─────
   // We reject based on magic bytes (not client-supplied file.type).
@@ -114,6 +134,7 @@ export async function createLetterAction(
     if (!detectedMime) {
       return {
         error: `File "${file.name}" is not an accepted image type. Only PNG, JPEG, GIF, and WEBP are allowed.`,
+        field: "body",
       };
     }
     // Read the full buffer now so we don't re-read later.
@@ -164,7 +185,13 @@ export async function createLetterAction(
       (pgErr?.constraint_name === "letters_url_unique" ||
         pgErr?.constraint === "letters_url_unique")
     ) {
-      return { error: "That letter name is already taken — choose another." };
+      // The collision is on the (handle, receiver, letter) URL triple; the
+      // letter name is the field the user can most easily change, so route the
+      // bounce to the address step where that field lives.
+      return {
+        error: "That letter name is already taken — choose another.",
+        field: "letter",
+      };
     }
     // Re-throw unexpected errors so they surface as 500s.
     throw err;
@@ -206,7 +233,12 @@ export async function createLetterAction(
         console.error("[createLetterAction] cleanup error deleting letter:", e)
       );
       // Fix 4: Return friendly error instead of throwing, so form stays mounted.
-      return { error: "Something went wrong saving your letter. Please try again." };
+      // Image upload/registration failures route to the paper step (where the
+      // photo input lives) so the banner is shown beside the relevant control.
+      return {
+        error: "Something went wrong saving your letter. Please try again.",
+        field: "body",
+      };
     }
 
     uploadedPaths.push(storagePath);
@@ -233,7 +265,12 @@ export async function createLetterAction(
         console.error("[createLetterAction] cleanup error deleting letter:", e)
       );
       // Fix 4: Return friendly error instead of throwing, so form stays mounted.
-      return { error: "Something went wrong saving your letter. Please try again." };
+      // Image upload/registration failures route to the paper step (where the
+      // photo input lives) so the banner is shown beside the relevant control.
+      return {
+        error: "Something went wrong saving your letter. Please try again.",
+        field: "body",
+      };
     }
   }
 

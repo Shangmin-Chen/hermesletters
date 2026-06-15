@@ -1,41 +1,47 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CopyLinkButtonProps {
   fullUrl: string;
+  onCopied?: () => void;
 }
 
-export function CopyLinkButton({ fullUrl }: CopyLinkButtonProps) {
+export function CopyLinkButton({ fullUrl, onCopied }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      onCopied?.();
     } catch {
-      // Fallback: select the text in the input
-      const input = document.createElement("input");
-      input.value = fullUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setCopied(false);
     }
   }
 
   return (
     <Button
       onClick={handleCopy}
-      variant="outline"
-      className="w-full"
+      variant={copied ? "default" : "outline"}
+      className="w-full sm:w-auto"
       type="button"
+      aria-label={copied ? "Letter link copied" : "Copy letter link"}
+      aria-pressed={copied}
     >
-      {copied ? "Copied!" : "Copy link"}
+      {copied ? (
+        <span className="flex items-center gap-2">
+          <Check className="size-4" aria-hidden="true" />
+          Copied
+        </span>
+      ) : (
+        <span className="flex items-center gap-2">
+          <Copy className="size-4" aria-hidden="true" />
+          Copy link
+        </span>
+      )}
     </Button>
   );
 }

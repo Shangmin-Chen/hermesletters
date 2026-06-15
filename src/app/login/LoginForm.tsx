@@ -26,10 +26,11 @@ export function LoginForm({ next }: { next?: string | null }) {
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
-          {/* Hidden field forwards the safe next path through form submission */}
           {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
-            <p className="text-sm text-destructive">{state.error}</p>
+            <p className="text-sm text-destructive" role="alert">
+              {state.error}
+            </p>
           )}
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
@@ -55,7 +56,7 @@ export function LoginForm({ next }: { next?: string | null }) {
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Logging in…" : "Log in"}
+            {pending ? "Logging in..." : "Log in"}
           </Button>
           <p className="text-sm text-muted-foreground text-center">
             Don&apos;t have an account?{" "}

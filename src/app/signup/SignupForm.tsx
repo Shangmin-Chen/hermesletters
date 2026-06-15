@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { signUpAction } from "./actions";
 
-export function SignupForm() {
+export function SignupForm({ next }: { next?: string | null }) {
   const [state, formAction, pending] = useActionState(signUpAction, null);
 
   return (
@@ -26,8 +26,11 @@ export function SignupForm() {
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
-            <p className="text-sm text-destructive">{state.error}</p>
+            <p className="text-sm text-destructive" role="alert">
+              {state.error}
+            </p>
           )}
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
@@ -55,7 +58,7 @@ export function SignupForm() {
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Creating account…" : "Sign up"}
+            {pending ? "Creating account..." : "Sign up"}
           </Button>
           <p className="text-sm text-muted-foreground text-center">
             Already have an account?{" "}

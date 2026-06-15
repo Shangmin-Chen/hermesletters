@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,37 +13,23 @@ interface NewLetterFormProps {
 }
 
 export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
-  const [state, formAction, isPending] = useActionState<CreateLetterState, FormData>(
-    createLetterAction,
-    null
-  );
+  const [state, formAction, isPending] = useActionState<
+    CreateLetterState,
+    FormData
+  >(createLetterAction, null);
+  const [receiverName, setReceiverName] = useState("");
+  const [letterName, setLetterName] = useState("");
 
-  // Track receiver and letter name for live URL preview
-  const receiverRef = useRef<HTMLInputElement>(null);
-  const letterRef = useRef<HTMLInputElement>(null);
-
-  // We compute the preview URL live in a controlled way via useState-like approach.
-  // Since we need live updates, use a simple onInput approach.
-
-  function getPreviewSlug(value: string): string {
-    return slugify(value);
-  }
-
-  function updatePreview() {
-    const receiverSlug = getPreviewSlug(receiverRef.current?.value ?? "");
-    const letterSlug = getPreviewSlug(letterRef.current?.value ?? "");
-    const previewEl = document.getElementById("url-preview");
-    if (previewEl) {
-      const receiverPart = receiverSlug || "<receiver>";
-      const letterPart = letterSlug || "<letter>";
-      previewEl.textContent = `/${senderHandle}/${receiverPart}/${letterPart}`;
-    }
-  }
+  const receiverSlug = slugify(receiverName);
+  const letterSlug = slugify(letterName);
 
   return (
     <form action={formAction} className="space-y-5">
       {state?.error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {state.error}
         </div>
       )}
@@ -53,14 +39,14 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         <Input
           id="receiver_name"
           name="receiver_name"
-          ref={receiverRef}
           placeholder="e.g. Jane"
-          onInput={updatePreview}
+          value={receiverName}
+          onChange={(event) => setReceiverName(event.target.value)}
           required
           disabled={isPending}
         />
         <p className="text-xs text-muted-foreground">
-          Who is this letter for? Will be slugified in the URL.
+          Who is this letter for? This becomes part of the URL.
         </p>
       </div>
 
@@ -69,25 +55,24 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         <Input
           id="letter_name"
           name="letter_name"
-          ref={letterRef}
           placeholder="e.g. Summer 2025"
-          onInput={updatePreview}
+          value={letterName}
+          onChange={(event) => setLetterName(event.target.value)}
           required
           disabled={isPending}
         />
         <p className="text-xs text-muted-foreground">
-          A short name for this letter. Will be slugified in the URL.
+          A short name for this letter. This also becomes part of the URL.
         </p>
       </div>
 
-      {/* Live URL preview */}
       <div className="rounded-md bg-muted px-4 py-3">
-        <p className="text-xs font-medium text-muted-foreground mb-1">Your letter URL will be:</p>
-        <p
-          id="url-preview"
-          className="font-mono text-sm break-all"
-        >
-          /{senderHandle}/{"<receiver>"}{"/<letter>"}
+        <p className="mb-1 text-xs font-medium text-muted-foreground">
+          Your letter URL will be:
+        </p>
+        <p id="url-preview" className="break-all font-mono text-sm">
+          /{senderHandle}/{receiverSlug || "<receiver>"}/
+          {letterSlug || "<letter>"}
         </p>
       </div>
 
@@ -96,7 +81,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         <Textarea
           id="body"
           name="body"
-          placeholder="Write your letter here…"
+          placeholder="Write your letter here..."
           rows={8}
           required
           disabled={isPending}
@@ -130,7 +115,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           autoComplete="off"
         />
         <p className="text-xs text-muted-foreground">
-          Case-insensitive. The receiver sees only the length and spaces — not the answer itself.
+          Case-insensitive. The receiver sees only the length and spaces.
         </p>
       </div>
 
@@ -141,16 +126,16 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           name="images"
           type="file"
           multiple
-          accept="image/*"
+          accept="image/png,image/jpeg,image/gif,image/webp"
           disabled={isPending}
         />
         <p className="text-xs text-muted-foreground">
-          Attach one or more images. They appear below the letter body after the receiver unlocks it.
+          PNG, JPEG, GIF, or WEBP. Images appear below the letter once unlocked.
         </p>
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Sending…" : "Send letter"}
+        {isPending ? "Sending..." : "Send letter"}
       </Button>
     </form>
   );

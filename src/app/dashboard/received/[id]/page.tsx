@@ -9,6 +9,10 @@ import { letters, letterImages } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
+import { LayoutDashboard } from "lucide-react";
+import { Envelope } from "@/components/brand/Envelope";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -42,6 +46,8 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
       savedBy: letters.savedBy,
       savedAt: letters.savedAt,
       senderHandle: letters.senderHandle,
+      letterName: letters.letterName,
+      receiverName: letters.receiverName,
     })
     .from(letters)
     .where(eq(letters.id, id))
@@ -98,69 +104,115 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
   });
 
   return (
-    <main className="min-h-screen bg-neutral-50 p-4">
+    <main className="min-h-screen p-4 pt-8 sm:p-6 sm:pt-12">
       <div className="mx-auto max-w-xl">
-        {/* Back to dashboard */}
-        <div className="mb-4">
+
+        {/* ── Back link ─────────────────────────────────────────────────── */}
+        <div className="mb-6 animate-rise-in">
           <Link
             href="/dashboard"
-            className="text-sm text-neutral-500 hover:text-neutral-700 underline underline-offset-2"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm min-h-[44px]"
           >
-            &larr; Dashboard
+            <span aria-hidden>←</span>
+            <span>Dashboard</span>
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-neutral-100 border-b border-neutral-200 px-6 py-4 text-center">
-            <span className="text-2xl" role="img" aria-label="Letter">
-              📨
-            </span>
-            <p className="mt-1 text-xs text-neutral-500 uppercase tracking-wider font-medium">
-              Received Letter
-            </p>
-            <p className="mt-1 text-sm text-neutral-600">
-              From{" "}
-              <span className="font-mono font-medium">@{authRow.senderHandle}</span>{" "}
-              &middot; saved {savedDate}
-            </p>
-          </div>
+        {/* ── Letter card ───────────────────────────────────────────────── */}
+        <article
+          className="rounded-2xl border border-border bg-card shadow-md overflow-hidden animate-rise-in"
+          style={{ animationDelay: "60ms" }}
+          aria-label={`Letter: ${authRow.letterName ?? "Received letter"}`}
+        >
 
-          {/* Letter body */}
-          <div className="px-6 py-8">
+          {/* Header band */}
+          <header className="bg-muted border-b border-border px-6 py-5 text-center">
+            <div className="flex justify-center mb-3">
+              <Envelope
+                state="open"
+                className="w-14 h-14 text-wax animate-rise-in"
+                aria-hidden
+              />
+            </div>
+
+            {/* Letter name / title */}
+            {authRow.letterName && (
+              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug mb-2">
+                {authRow.letterName}
+              </h1>
+            )}
+
+            {/* Attribution caption */}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              From{" "}
+              <span className="font-mono font-medium text-foreground">
+                @{authRow.senderHandle}
+              </span>
+              {authRow.receiverName && (
+                <>
+                  {" "}
+                  <span className="text-muted-foreground">·</span>{" "}
+                  <span>to {authRow.receiverName}</span>
+                </>
+              )}
+              <br />
+              <span className="text-xs text-muted-foreground">
+                Kept {savedDate}
+              </span>
+            </p>
+          </header>
+
+          {/* ── Letter body ─────────────────────────────────────────────── */}
+          <div
+            className="px-6 py-8 sm:px-10 animate-unfold"
+            style={{ animationDelay: "160ms" }}
+          >
             {/*
              * body is plain text; React escapes it automatically.
-             * We use whitespace-pre-wrap to preserve line breaks without
+             * whitespace-pre-wrap preserves line breaks without
              * dangerouslySetInnerHTML.
              */}
-            <div className="text-neutral-800 text-base leading-relaxed whitespace-pre-wrap">
+            <div className="font-serif text-base text-foreground leading-[1.85] whitespace-pre-wrap tracking-[0.01em]">
               {contentRow.body}
             </div>
 
-            {/* Image gallery */}
+            {/* ── Image gallery ─────────────────────────────────────────── */}
             {validUrls.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div
+                className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 animate-rise-in"
+                style={{ animationDelay: "260ms" }}
+              >
                 {validUrls.map((url, i) => (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     key={i}
                     src={url}
-                    alt={`Image ${i + 1}`}
-                    className="w-full rounded-lg border border-neutral-200 object-cover"
+                    alt={`Attached image ${i + 1}`}
+                    className="w-full rounded-lg border border-border object-cover shadow-sm"
                   />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-neutral-100 bg-neutral-50 px-6 py-4 text-center">
-            <p className="text-xs text-neutral-400">
-              This letter is saved to your account and will remain here
-              permanently.
+          {/* ── Footer ──────────────────────────────────────────────────── */}
+          <footer className="border-t border-border bg-muted/50 px-6 py-4 text-center">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This letter is kept forever — a permanent part of your story.
             </p>
-          </div>
-        </div>
+            <Link
+              href="/dashboard"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "mt-4 min-h-10 rounded-full bg-background/80"
+              )}
+            >
+              <LayoutDashboard className="size-4" aria-hidden="true" />
+              Back to dashboard
+            </Link>
+          </footer>
+
+        </article>
       </div>
     </main>
   );

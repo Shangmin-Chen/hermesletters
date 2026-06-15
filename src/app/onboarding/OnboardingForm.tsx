@@ -17,11 +17,11 @@ import { slugify } from "@/lib/slugify";
 
 interface OnboardingFormProps {
   emailLocalPart: string;
+  next?: string | null;
 }
 
-export function OnboardingForm({ emailLocalPart }: OnboardingFormProps) {
+export function OnboardingForm({ emailLocalPart, next }: OnboardingFormProps) {
   const [state, formAction, pending] = useActionState(onboardingAction, null);
-
   const [handlePreview, setHandlePreview] = useState("");
 
   return (
@@ -34,8 +34,11 @@ export function OnboardingForm({ emailLocalPart }: OnboardingFormProps) {
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
-            <p className="text-sm text-destructive">{state.error}</p>
+            <p className="text-sm text-destructive" role="alert">
+              {state.error}
+            </p>
           )}
           <div className="space-y-1">
             <Label htmlFor="handle">Handle</Label>
@@ -49,7 +52,7 @@ export function OnboardingForm({ emailLocalPart }: OnboardingFormProps) {
               onChange={(e) => setHandlePreview(slugify(e.target.value))}
             />
             {handlePreview && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground" aria-live="polite">
                 Will appear as: <span className="font-mono">{handlePreview}</span>
               </p>
             )}
@@ -70,7 +73,7 @@ export function OnboardingForm({ emailLocalPart }: OnboardingFormProps) {
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Saving…" : "Continue"}
+            {pending ? "Saving..." : "Continue"}
           </Button>
         </CardFooter>
       </form>

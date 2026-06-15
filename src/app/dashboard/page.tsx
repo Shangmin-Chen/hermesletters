@@ -5,7 +5,6 @@ import { letters } from "@/db/schema";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -43,60 +42,48 @@ export default async function DashboardPage() {
     )
     .orderBy(desc(letters.savedAt));
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6">
-      <div className="w-full max-w-2xl space-y-6">
-        {/* Header card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dashboard</CardTitle>
-            <CardDescription>
-              Welcome back,{" "}
-              <span className="font-medium text-foreground">
-                {profile.display_name ?? profile.handle}
-              </span>
-              . Your handle is{" "}
-              <span className="font-mono font-medium text-foreground">
-                @{profile.handle}
-              </span>
-              .
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Send mail CTA */}
-            <Link
-              href="/new"
-              className={cn(
-                buttonVariants({ variant: "default" }),
-                "w-full inline-flex justify-center"
-              )}
-            >
-              Write a letter
-            </Link>
-            <form action="/auth/signout" method="POST">
-              <Button type="submit" variant="outline" className="w-full">
-                Sign out
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+  const greeting = profile.display_name ?? profile.handle;
 
-        {/* Received mail */}
+  return (
+    <main className="flex min-h-screen flex-col items-center bg-gray-50 p-4 pt-10 sm:p-6">
+      <div className="w-full max-w-2xl space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Received mail</CardTitle>
+            <CardTitle>Welcome, {greeting}</CardTitle>
             <CardDescription>
-              Letters you&apos;ve saved during the grace window — yours permanently.
+              Write a private letter or revisit one you&apos;ve kept.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Link
+              href="/new"
+              className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+            >
+              Write a letter
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle>Kept letters</CardTitle>
+              <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
+                {receivedLetters.length}
+              </span>
+            </div>
+            <CardDescription>
+              Letters you saved after opening.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
             {receivedLetters.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No letters yet. When you keep a letter during its 24-hour grace
-                window, it will appear here.
+                No kept letters yet.
               </p>
             ) : (
-              <ul className="divide-y divide-border">
+              <ul className="divide-y">
                 {receivedLetters.map((letter) => {
                   const savedDate = letter.savedAt
                     ? new Date(letter.savedAt).toLocaleString("en-US", {
@@ -107,22 +94,16 @@ export default async function DashboardPage() {
                     : null;
 
                   return (
-                    <li key={letter.id} className="py-3">
+                    <li key={letter.id}>
                       <Link
                         href={`/dashboard/received/${letter.id}`}
-                        className="group flex flex-col gap-0.5 hover:underline"
+                        className="block py-4 transition-colors hover:text-primary"
                       >
-                        <span className="font-medium text-foreground group-hover:underline">
-                          {letter.letterName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          From{" "}
-                          <span className="font-mono">@{letter.senderHandle}</span>{" "}
-                          &middot; to {letter.receiverName}
-                          {savedDate && (
-                            <> &middot; saved {savedDate}</>
-                          )}
-                        </span>
+                        <p className="font-medium">{letter.letterName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          From @{letter.senderHandle} to {letter.receiverName}
+                          {savedDate ? ` · kept ${savedDate}` : ""}
+                        </p>
                       </Link>
                     </li>
                   );

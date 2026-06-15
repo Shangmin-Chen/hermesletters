@@ -10,7 +10,6 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getUser();
   if (user) {
-    // Route authenticated users based on profile state (ignore next= when already logged in)
     const profile = await getProfile();
     redirect(profile ? "/dashboard" : "/onboarding");
   }

@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Send a Letter",
-  description: "Write a virtual letter, lock it behind a personal question, and share it.",
+  title: {
+    default: "Send a Letter",
+    template: "%s · Send a Letter",
+  },
+  description: "Write something real. Seal it with a secret only they know.",
 };
 
 export default function RootLayout({

@@ -29,16 +29,6 @@ export async function getProfile() {
 }
 
 /**
- * Require an authenticated user.
- * Redirects to /login if unauthenticated.
- */
-export async function requireUser() {
-  const user = await getUser();
-  if (!user) redirect("/login");
-  return user;
-}
-
-/**
  * Require an authenticated user with a profiles row.
  * Redirects to /login if unauthenticated.
  * Redirects to /onboarding if authenticated but no profile.
