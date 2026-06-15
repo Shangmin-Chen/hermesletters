@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const next = rawNext && isSafeLocalPath(rawNext) ? rawNext : null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+    <main className="flex flex-1 flex-col items-center justify-center p-4">
       <LoginForm next={next} />
     </main>
   );

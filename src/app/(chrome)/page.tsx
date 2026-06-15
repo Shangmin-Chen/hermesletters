@@ -1,0 +1,75 @@
+import Link from "next/link";
+import { getUser, getProfile } from "@/lib/auth";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export default async function Home() {
+  const user = await getUser();
+  const profile = user ? await getProfile() : null;
+
+  return (
+    <main className="flex flex-1 flex-col items-center justify-center p-6">
+      <div className="w-full max-w-xl space-y-8 text-center animate-rise-in">
+        <div className="space-y-4">
+          <h1 className="font-serif text-4xl font-semibold tracking-tight text-ink">
+            Write a private letter.
+          </h1>
+          <p className="text-lg leading-8 text-muted-foreground">
+            Lock it behind a secret only they know.
+          </p>
+          <p className="text-sm leading-7 text-muted-foreground">
+            It opens once — for the one person it was meant for, then it&apos;s gone.
+          </p>
+        </div>
+
+        {/* Three-beat explanation */}
+        <div className="flex items-start justify-center gap-6 text-sm text-muted-foreground sm:gap-10">
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="font-serif text-2xl text-ink">✦</span>
+            <span className="font-medium text-foreground">Write</span>
+            <span>Compose your letter, as long as it needs to be.</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="font-serif text-2xl text-ink">⊙</span>
+            <span className="font-medium text-foreground">Seal</span>
+            <span>Lock it with a secret only the two of you know.</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="font-serif text-2xl text-ink">◌</span>
+            <span className="font-medium text-foreground">Once</span>
+            <span>They open it once. Then it&apos;s gone forever.</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-center gap-3 sm:flex-row">
+          {user ? (
+            <Link
+              href={profile ? "/dashboard" : "/onboarding"}
+              className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+            >
+              Go to dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/signup"
+                className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+              >
+                Get started
+              </Link>
+              <Link
+                href="/login"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "w-full sm:w-auto"
+                )}
+              >
+                Sign in
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}

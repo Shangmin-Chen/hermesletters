@@ -17,10 +17,12 @@ export interface EnvelopeProps {
 }
 
 /**
- * Envelope — brand SVG illustration for Send a Letter.
+ * Envelope — brand SVG illustration for Hermes' Letters.
  *
  * Uses `currentColor` for ink lines so it inherits text color in any context.
- * The wax-seal circle uses `var(--wax)` directly so it is always terracotta.
+ * The wax-seal circle uses `var(--wax)` directly — which maps to the primary
+ * colour token, a zero-chroma greyscale in the paper-and-ink theme (not
+ * terracotta; the palette is intentionally achromatic).
  *
  * The wax seal lives in its own `<g data-seal>` group (transform-origin at the
  * seal center). Apply `.animate-seal-break` to that group for the unlock pop,
@@ -182,7 +184,8 @@ export function Envelope({
             style={{ transformOrigin: "48px 49px", transformBox: "fill-box" }}
             data-seal=""
           >
-          {/* Wax seal — terracotta circle at the flap-fold intersection */}
+          {/* Wax seal — primary-colour circle at the flap-fold intersection
+               (zero-chroma greyscale in the paper-and-ink theme) */}
           <circle
             cx="48"
             cy="49"

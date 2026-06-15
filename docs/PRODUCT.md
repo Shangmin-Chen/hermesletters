@@ -1,6 +1,6 @@
 # The experience
 
-Send a Letter is meant to feel like handling a physical letter, not filling in a
+Hermes' Letters is meant to feel like handling a physical letter, not filling in a
 web form. This document describes the writing and reading experiences and the
 theming that carries them. For the underlying mechanics see
 [ARCHITECTURE.md](./ARCHITECTURE.md).

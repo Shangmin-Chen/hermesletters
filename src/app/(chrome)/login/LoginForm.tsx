@@ -21,7 +21,7 @@ export function LoginForm({ next }: { next?: string | null }) {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
+        <CardTitle className="font-serif">Welcome back</CardTitle>
         <CardDescription>Log in to your account to continue.</CardDescription>
       </CardHeader>
       <form action={formAction}>

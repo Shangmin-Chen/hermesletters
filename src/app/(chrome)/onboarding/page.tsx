@@ -20,7 +20,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const emailLocalPart = user.email?.split("@")[0] ?? "";
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+    <main className="flex flex-1 flex-col items-center justify-center p-4">
       <OnboardingForm emailLocalPart={emailLocalPart} next={next} />
     </main>
   );

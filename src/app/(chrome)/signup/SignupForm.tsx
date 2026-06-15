@@ -21,7 +21,7 @@ export function SignupForm({ next }: { next?: string | null }) {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle className="font-serif">Create an account</CardTitle>
         <CardDescription>Sign up to start sending letters.</CardDescription>
       </CardHeader>
       <form action={formAction}>

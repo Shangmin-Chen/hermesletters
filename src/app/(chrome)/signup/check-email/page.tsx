@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { Wordmark } from "@/components/brand/Wordmark";
 import { Envelope } from "@/components/brand/Envelope";
 
 export default function CheckEmailPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
+    <main className="flex flex-1 flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm animate-rise-in space-y-8">
-        {/* Illustration */}
+        {/* Illustration — header already shows the wordmark brand mark */}
         <div className="flex flex-col items-center gap-4 text-center">
           <Envelope state="open" className="w-16 h-16 text-ink" aria-hidden />
-          <Wordmark size="sm" className="text-muted-foreground" />
         </div>
 
         {/* Card */}

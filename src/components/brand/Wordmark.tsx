@@ -17,11 +17,12 @@ const sizeMap = {
 };
 
 /**
- * Wordmark — "Send a Letter" logotype lockup.
+ * Wordmark — "Hermes' Letters" logotype lockup.
  *
  * Combines the Envelope mark with the product name.
  * Inherits text color so it works on any background; the wax seal in the
- * Envelope component always renders in `var(--wax)`.
+ * Envelope component renders in `var(--wax)`, which maps to the primary colour
+ * token — a zero-chroma greyscale in the paper-and-ink theme (not terracotta).
  *
  * @example
  *   <Wordmark />                        // default md, inherits color
@@ -37,7 +38,7 @@ export function Wordmark({ size = "md", className = "", href }: WordmarkProps) {
     <Tag
       {...(href ? { href } : {})}
       className={`inline-flex items-center ${s.gap} ${className}`}
-      aria-label="Send a Letter"
+      aria-label="Hermes' Letters"
     >
       <Envelope
         state="sealed"
@@ -48,7 +49,7 @@ export function Wordmark({ size = "md", className = "", href }: WordmarkProps) {
         className={`font-serif font-semibold leading-none tracking-tight ${s.text}`}
         aria-hidden="true"
       >
-        Send a Letter
+        Hermes&apos; Letters
       </span>
     </Tag>
   );

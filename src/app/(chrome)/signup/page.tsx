@@ -21,7 +21,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+    <main className="flex flex-1 flex-col items-center justify-center p-4">
       <SignupForm next={next} />
     </main>
   );

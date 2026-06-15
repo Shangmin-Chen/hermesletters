@@ -45,11 +45,13 @@ export default async function DashboardPage() {
   const greeting = profile.display_name ?? profile.handle;
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-gray-50 p-4 pt-10 sm:p-6">
-      <div className="w-full max-w-2xl space-y-6">
+    <main className="flex flex-1 flex-col items-center p-4 pt-10 sm:p-6">
+      <div className="w-full max-w-2xl space-y-6 animate-rise-in">
         <Card>
           <CardHeader>
-            <CardTitle>Welcome, {greeting}</CardTitle>
+            <CardTitle className="font-serif text-xl">
+              Welcome back, {greeting}
+            </CardTitle>
             <CardDescription>
               Write a private letter or revisit one you&apos;ve kept.
             </CardDescription>
@@ -67,7 +69,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
-              <CardTitle>Kept letters</CardTitle>
+              <CardTitle className="font-serif text-xl">Kept letters</CardTitle>
               <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
                 {receivedLetters.length}
               </span>
@@ -79,9 +81,15 @@ export default async function DashboardPage() {
 
           <CardContent>
             {receivedLetters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No kept letters yet.
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  No kept letters yet.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Letters you send aren&apos;t kept here — only letters you open
+                  and choose to keep will appear in this list.
+                </p>
+              </div>
             ) : (
               <ul className="divide-y">
                 {receivedLetters.map((letter) => {

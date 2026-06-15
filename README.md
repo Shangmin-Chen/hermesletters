@@ -1,9 +1,9 @@
-# Send a Letter
+# Hermes' Letters
 
 Write something real. Seal it with a secret only they know. Share it once — it
 opens once.
 
-Send a Letter is a full-stack Next.js + Supabase app for sending **virtual
+Hermes' Letters is a full-stack Next.js + Supabase app for sending **virtual
 letters**. A signed-in sender writes a letter (text + optional images), locks it
 behind a personal question, and shares a human-readable link. Anyone with the
 link can try to unlock it — but a letter **opens only once**. After the first

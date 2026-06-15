@@ -1,4 +1,4 @@
-import { NewLetterForm } from "@/app/new/new-letter-form";
+import { NewLetterForm } from "@/app/(chrome)/new/new-letter-form";
 import {
   Card,
   CardContent,
