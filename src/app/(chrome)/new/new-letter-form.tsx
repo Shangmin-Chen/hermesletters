@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createLetterAction, type CreateLetterState } from "./actions";
 import { slugify } from "@/lib/slugify";
-import { Eye, EyeOff, X } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, X } from "lucide-react";
 
 interface NewLetterFormProps {
   senderHandle: string;
@@ -26,24 +26,55 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
   const [letterName, setLetterName] = useState("");
   const [showAnswer, setShowAnswer] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const receiverSlug = slugify(receiverName);
   const letterSlug = slugify(letterName);
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []);
-      // Revoke previous object URLs to avoid memory leaks
+  // Write a list of previews back to the underlying file input so the form
+  // submits exactly what's shown.
+  const syncInput = useCallback((previews: ImagePreview[]) => {
+    if (!fileInputRef.current) return;
+    const dt = new DataTransfer();
+    previews.forEach((p) => dt.items.add(p.file));
+    fileInputRef.current.files = dt.files;
+  }, []);
+
+  // Append image files (from browse or drag-and-drop) to the current list,
+  // skipping non-images and duplicates.
+  const addFiles = useCallback(
+    (incoming: File[]) => {
+      const images = incoming.filter((f) => f.type.startsWith("image/"));
+      if (images.length === 0) return;
+
       setImagePreviews((prev) => {
-        prev.forEach((p) => URL.revokeObjectURL(p.objectUrl));
-        return files.map((file) => ({
-          file,
-          objectUrl: URL.createObjectURL(file),
-        }));
+        const existing = new Set(prev.map((p) => `${p.file.name}:${p.file.size}`));
+        const additions = images
+          .filter((f) => !existing.has(`${f.name}:${f.size}`))
+          .map((file) => ({ file, objectUrl: URL.createObjectURL(file) }));
+        const next = [...prev, ...additions];
+        syncInput(next);
+        return next;
       });
     },
-    []
+    [syncInput]
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      addFiles(Array.from(e.target.files ?? []));
+    },
+    [addFiles]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragging(false);
+      addFiles(Array.from(e.dataTransfer.files));
+    },
+    [addFiles]
   );
 
   const removeImage = useCallback((index: number) => {
@@ -51,17 +82,10 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       const next = [...prev];
       URL.revokeObjectURL(next[index].objectUrl);
       next.splice(index, 1);
-
-      // Sync the file input with the updated list
-      if (fileInputRef.current) {
-        const dt = new DataTransfer();
-        next.forEach((p) => dt.items.add(p.file));
-        fileInputRef.current.files = dt.files;
-      }
-
+      syncInput(next);
       return next;
     });
-  }, []);
+  }, [syncInput]);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -222,6 +246,31 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             PNG, JPEG, GIF, or WEBP · max 5 MB each. Images appear below the
             letter once unlocked.
           </p>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!isPending) setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+            }}
+            onDrop={isPending ? undefined : handleDrop}
+            onClick={() => !isPending && fileInputRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 py-6 text-center transition-colors ${
+              isDragging
+                ? "border-ring bg-muted/60"
+                : "border-border hover:bg-muted/40"
+            } ${isPending ? "pointer-events-none opacity-60" : ""}`}
+          >
+            <ImagePlus className="size-5 text-muted-foreground" aria-hidden />
+            <p className="text-sm text-foreground">
+              <span className="font-medium">Drag &amp; drop</span> images here, or{" "}
+              <span className="underline">browse</span>
+            </p>
+          </div>
+
           <Input
             ref={fileInputRef}
             id="images"
@@ -231,6 +280,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             accept="image/png,image/jpeg,image/gif,image/webp"
             disabled={isPending}
             onChange={handleFileChange}
+            className="sr-only"
           />
 
           {/* Thumbnail previews */}
