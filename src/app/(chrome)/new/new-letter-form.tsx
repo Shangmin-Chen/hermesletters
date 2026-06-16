@@ -6,7 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createLetterAction, type CreateLetterState } from "./actions";
 import { slugify } from "@/lib/slugify";
-import { Eye, EyeOff, ImagePlus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Eye,
+  EyeOff,
+  ImagePlus,
+  X,
+} from "lucide-react";
 
 interface NewLetterFormProps {
   senderHandle: string;
@@ -17,16 +25,28 @@ interface ImagePreview {
   objectUrl: string;
 }
 
+// Each step lists the required field names to validate before advancing.
+const STEPS = [
+  { label: "Write", fields: ["body"] },
+  { label: "Photos", fields: [] },
+  { label: "Lock", fields: ["question", "answer"] },
+  { label: "Send", fields: ["receiver_name", "letter_name"] },
+] as const;
+
+const LAST_STEP = STEPS.length - 1;
+
 export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
   const [state, formAction, isPending] = useActionState<
     CreateLetterState,
     FormData
   >(createLetterAction, null);
+  const [step, setStep] = useState(0);
   const [receiverName, setReceiverName] = useState("");
   const [letterName, setLetterName] = useState("");
   const [showAnswer, setShowAnswer] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const receiverSlug = slugify(receiverName);
@@ -49,7 +69,9 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       if (images.length === 0) return;
 
       setImagePreviews((prev) => {
-        const existing = new Set(prev.map((p) => `${p.file.name}:${p.file.size}`));
+        const existing = new Set(
+          prev.map((p) => `${p.file.name}:${p.file.size}`)
+        );
         const additions = images
           .filter((f) => !existing.has(`${f.name}:${f.size}`))
           .map((file) => ({ file, objectUrl: URL.createObjectURL(file) }));
@@ -77,18 +99,45 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     [addFiles]
   );
 
-  const removeImage = useCallback((index: number) => {
-    setImagePreviews((prev) => {
-      const next = [...prev];
-      URL.revokeObjectURL(next[index].objectUrl);
-      next.splice(index, 1);
-      syncInput(next);
-      return next;
-    });
-  }, [syncInput]);
+  const removeImage = useCallback(
+    (index: number) => {
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        URL.revokeObjectURL(next[index].objectUrl);
+        next.splice(index, 1);
+        syncInput(next);
+        return next;
+      });
+    },
+    [syncInput]
+  );
+
+  // Run native validation on the current step's required fields before
+  // advancing; surfaces the browser's message on the first invalid one.
+  const validateStep = useCallback((s: number) => {
+    const form = formRef.current;
+    if (!form) return true;
+    for (const name of STEPS[s].fields) {
+      const el = form.elements.namedItem(name) as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | null;
+      if (el && !el.checkValidity()) {
+        el.reportValidity();
+        return false;
+      }
+    }
+    return true;
+  }, []);
+
+  const goNext = useCallback(() => {
+    if (validateStep(step)) setStep((s) => Math.min(s + 1, LAST_STEP));
+  }, [step, validateStep]);
+
+  const goBack = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
 
   return (
-    <form action={formAction} className="space-y-8">
+    <form ref={formRef} action={formAction} className="space-y-6">
       {state?.error && (
         <div
           role="alert"
@@ -98,61 +147,44 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         </div>
       )}
 
-      {/* ── Block 1: Address & URL ─────────────────────────────────────── */}
-      <section
-        aria-label="Address"
-        className="rounded-xl border border-border bg-card p-5 space-y-4"
-      >
-        <h2 className="font-serif text-base font-semibold text-ink">
-          Address it
-        </h2>
+      {/* ── Stepper ─────────────────────────────────────────────────────── */}
+      <ol className="flex items-center gap-2" aria-label="Progress">
+        {STEPS.map((s, i) => {
+          const isDone = i < step;
+          const isCurrent = i === step;
+          return (
+            <li key={s.label} className="flex flex-1 items-center gap-2">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors ${
+                  isDone
+                    ? "border-ink bg-ink text-background"
+                    : isCurrent
+                      ? "border-ink text-ink"
+                      : "border-border text-muted-foreground"
+                }`}
+                aria-current={isCurrent ? "step" : undefined}
+              >
+                {isDone ? <Check className="size-3.5" aria-hidden /> : i + 1}
+              </span>
+              <span
+                className={`hidden text-sm sm:inline ${
+                  isCurrent ? "font-medium text-ink" : "text-muted-foreground"
+                }`}
+              >
+                {s.label}
+              </span>
+              {i < LAST_STEP && (
+                <span className="h-px flex-1 bg-border" aria-hidden />
+              )}
+            </li>
+          );
+        })}
+      </ol>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="receiver_name">Receiver name</Label>
-          <Input
-            id="receiver_name"
-            name="receiver_name"
-            placeholder="e.g. Jane"
-            value={receiverName}
-            onChange={(event) => setReceiverName(event.target.value)}
-            required
-            disabled={isPending}
-          />
-          <p className="text-xs text-muted-foreground">
-            Who is this letter for? This becomes part of the URL.
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="letter_name">Letter name</Label>
-          <Input
-            id="letter_name"
-            name="letter_name"
-            placeholder="e.g. Summer 2025"
-            value={letterName}
-            onChange={(event) => setLetterName(event.target.value)}
-            required
-            disabled={isPending}
-          />
-          <p className="text-xs text-muted-foreground">
-            A short name for this letter. This also becomes part of the URL.
-          </p>
-        </div>
-
-        <div className="rounded-md bg-muted px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
-            Your letter URL will be:
-          </p>
-          <p id="url-preview" className="break-all font-mono text-sm">
-            /{senderHandle}/{receiverSlug || "<receiver>"}/
-            {letterSlug || "<letter>"}
-          </p>
-        </div>
-      </section>
-
-      {/* ── Block 2: The letter body — paper-styled writing surface ───────── */}
+      {/* ── Step 1: Write ───────────────────────────────────────────────── */}
       <section
         aria-label="Letter body"
+        hidden={step !== 0}
         className="rounded-xl border border-border overflow-hidden shadow-sm"
       >
         <div className="bg-muted/50 border-b border-border px-5 py-3">
@@ -183,9 +215,93 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         </div>
       </section>
 
-      {/* ── Block 3: Lock & logistics ─────────────────────────────────────── */}
+      {/* ── Step 2: Photos ──────────────────────────────────────────────── */}
+      <section
+        aria-label="Photos"
+        hidden={step !== 1}
+        className="rounded-xl border border-border bg-card p-5 space-y-4"
+      >
+        <div>
+          <h2 className="font-serif text-base font-semibold text-ink">
+            Add photos
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            PNG, JPEG, GIF, or WEBP · max 5 MB each. Optional — images appear
+            below the letter once unlocked.
+          </p>
+        </div>
+
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isPending) setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={isPending ? undefined : handleDrop}
+          onClick={() => !isPending && fileInputRef.current?.click()}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 py-10 text-center transition-colors ${
+            isDragging
+              ? "border-ring bg-muted/60"
+              : "border-border hover:bg-muted/40"
+          } ${isPending ? "pointer-events-none opacity-60" : ""}`}
+        >
+          <ImagePlus className="size-6 text-muted-foreground" aria-hidden />
+          <p className="text-sm text-foreground">
+            <span className="font-medium">Drag &amp; drop</span> images here, or{" "}
+            <span className="underline">browse</span>
+          </p>
+        </div>
+
+        <Input
+          ref={fileInputRef}
+          id="images"
+          name="images"
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          disabled={isPending}
+          onChange={handleFileChange}
+          className="sr-only"
+        />
+
+        {/* Thumbnail previews */}
+        {imagePreviews.length > 0 && (
+          <ul
+            className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+            aria-label="Selected images"
+          >
+            {imagePreviews.map((preview, i) => (
+              <li key={preview.objectUrl} className="relative group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={preview.objectUrl}
+                  alt={preview.file.name}
+                  className="h-20 w-full rounded-md border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-muted-foreground hover:text-destructive shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity"
+                  aria-label={`Remove ${preview.file.name}`}
+                >
+                  <X className="size-3" aria-hidden />
+                </button>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground leading-none">
+                  {preview.file.name}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ── Step 3: Lock & seal ─────────────────────────────────────────── */}
       <section
         aria-label="Lock"
+        hidden={step !== 2}
         className="rounded-xl border border-border bg-card p-5 space-y-4"
       >
         <h2 className="font-serif text-base font-semibold text-ink">
@@ -238,91 +354,85 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             the answer itself.
           </p>
         </div>
+      </section>
 
-        {/* ── Images ── */}
-        <div className="space-y-2 pt-1">
-          <Label htmlFor="images">Images (optional)</Label>
-          <p className="text-xs text-muted-foreground">
-            PNG, JPEG, GIF, or WEBP · max 5 MB each. Images appear below the
-            letter once unlocked.
-          </p>
+      {/* ── Step 4: Address & send ──────────────────────────────────────── */}
+      <section
+        aria-label="Address"
+        hidden={step !== LAST_STEP}
+        className="rounded-xl border border-border bg-card p-5 space-y-4"
+      >
+        <h2 className="font-serif text-base font-semibold text-ink">
+          Address &amp; send
+        </h2>
 
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (!isPending) setIsDragging(true);
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-            }}
-            onDrop={isPending ? undefined : handleDrop}
-            onClick={() => !isPending && fileInputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed px-4 py-6 text-center transition-colors ${
-              isDragging
-                ? "border-ring bg-muted/60"
-                : "border-border hover:bg-muted/40"
-            } ${isPending ? "pointer-events-none opacity-60" : ""}`}
-          >
-            <ImagePlus className="size-5 text-muted-foreground" aria-hidden />
-            <p className="text-sm text-foreground">
-              <span className="font-medium">Drag &amp; drop</span> images here, or{" "}
-              <span className="underline">browse</span>
-            </p>
-          </div>
-
+        <div className="space-y-1.5">
+          <Label htmlFor="receiver_name">Receiver name</Label>
           <Input
-            ref={fileInputRef}
-            id="images"
-            name="images"
-            type="file"
-            multiple
-            accept="image/png,image/jpeg,image/gif,image/webp"
+            id="receiver_name"
+            name="receiver_name"
+            placeholder="e.g. Jane"
+            value={receiverName}
+            onChange={(event) => setReceiverName(event.target.value)}
+            required
             disabled={isPending}
-            onChange={handleFileChange}
-            className="sr-only"
           />
+          <p className="text-xs text-muted-foreground">
+            Who is this letter for? This becomes part of the URL.
+          </p>
+        </div>
 
-          {/* Thumbnail previews */}
-          {imagePreviews.length > 0 && (
-            <ul
-              className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4"
-              aria-label="Selected images"
-            >
-              {imagePreviews.map((preview, i) => (
-                <li key={preview.objectUrl} className="relative group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={preview.objectUrl}
-                    alt={preview.file.name}
-                    className="h-20 w-full rounded-md border border-border object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-muted-foreground hover:text-destructive shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity"
-                    aria-label={`Remove ${preview.file.name}`}
-                  >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground leading-none">
-                    {preview.file.name}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="space-y-1.5">
+          <Label htmlFor="letter_name">Letter name</Label>
+          <Input
+            id="letter_name"
+            name="letter_name"
+            placeholder="e.g. Summer 2025"
+            value={letterName}
+            onChange={(event) => setLetterName(event.target.value)}
+            required
+            disabled={isPending}
+          />
+          <p className="text-xs text-muted-foreground">
+            A short name for this letter. This also becomes part of the URL.
+          </p>
+        </div>
+
+        <div className="rounded-md bg-muted px-4 py-3">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
+            Your letter URL will be:
+          </p>
+          <p id="url-preview" className="break-all font-mono text-sm">
+            /{senderHandle}/{receiverSlug || "<receiver>"}/
+            {letterSlug || "<letter>"}
+          </p>
         </div>
       </section>
 
-      <Button
-        type="submit"
-        className="w-full"
-        size="lg"
-        disabled={isPending}
-      >
-        {isPending ? "Sealing your letter…" : "Send letter"}
-      </Button>
+      {/* ── Navigation ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={goBack}
+          disabled={step === 0 || isPending}
+          className={step === 0 ? "invisible" : ""}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Back
+        </Button>
+
+        {step < LAST_STEP ? (
+          <Button type="button" onClick={goNext} disabled={isPending}>
+            Next
+            <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        ) : (
+          <Button type="submit" size="lg" disabled={isPending}>
+            {isPending ? "Sealing your letter…" : "Send letter"}
+          </Button>
+        )}
+      </div>
     </form>
   );
 }
