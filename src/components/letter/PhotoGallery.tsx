@@ -161,15 +161,16 @@ export function PhotoGallery({ urls, className }: PhotoGalleryProps) {
             </div>
           </div>
 
-          {/* Stage */}
-          <div
-            className="relative flex flex-1 items-center justify-center px-4 pb-6 min-h-0"
-            onClick={(e) => e.stopPropagation()}
-          >
+          {/* Stage — clicking the dimmed area around the photo closes; the
+              photo itself and the nav arrows stop the click from bubbling. */}
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-6 min-h-0">
             {count > 1 && (
               <button
                 type="button"
-                onClick={prev}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prev();
+                }}
                 className="absolute left-2 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:left-4"
                 aria-label="Previous photo"
               >
@@ -181,13 +182,17 @@ export function PhotoGallery({ urls, className }: PhotoGalleryProps) {
             <img
               src={urls[active]}
               alt={`Photo ${active + 1}`}
+              onClick={(e) => e.stopPropagation()}
               className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
             />
 
             {count > 1 && (
               <button
                 type="button"
-                onClick={next}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  next();
+                }}
                 className="absolute right-2 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:right-4"
                 aria-label="Next photo"
               >
