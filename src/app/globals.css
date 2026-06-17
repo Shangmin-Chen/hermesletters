@@ -151,81 +151,6 @@
   }
 }
 
-@layer components {
-  .letter-lift {
-    filter: drop-shadow(0 16px 24px oklch(0 0 0 / 0.08));
-  }
-
-  .letter-sheet {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--paper);
-    color: var(--ink);
-  }
-
-  .letter-texture,
-  .letter-aging,
-  .letter-folds {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  .letter-texture {
-    background-image: var(--paper-tex, url("/textures/cream-paper.png"));
-    background-size: cover;
-    opacity: 0.16;
-    mix-blend-mode: multiply;
-  }
-
-  .letter-aging {
-    background:
-      linear-gradient(to bottom, oklch(0 0 0 / 0.03), transparent 18%),
-      radial-gradient(circle at 50% 0%, oklch(0 0 0 / 0.04), transparent 45%);
-  }
-
-  .letter-folds {
-    background:
-      linear-gradient(to bottom, transparent 32%, oklch(0 0 0 / 0.08) 33%, transparent 34%),
-      linear-gradient(to bottom, transparent 66%, oklch(0 0 0 / 0.06) 67%, transparent 68%);
-    opacity: 0.35;
-  }
-
-  .letter-sheet--deckle {
-    border-radius: var(--radius-md);
-  }
-
-  .letter-blank {
-    min-width: 0;
-    background: transparent;
-    color: inherit;
-    border: 0;
-    border-bottom: 1px solid oklch(0 0 0 / 0.25);
-    outline: none;
-  }
-
-  .letter-blank:focus-visible {
-    border-bottom-color: var(--foreground);
-    box-shadow: 0 1px 0 0 var(--foreground);
-  }
-
-  .letter-blank--inline {
-    display: inline;
-    min-width: 5ch;
-  }
-
-  .letter-blank--body {
-    display: block;
-    width: 100%;
-    resize: none;
-    overflow: hidden;
-    min-height: 7lh;
-    border-bottom: 0;
-  }
-}
-
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -245,6 +170,23 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Lootbox lift — an item springs up and settles as it's taken out of the
+   envelope. A touch of overshoot makes it feel physical, like it pops free. */
+@keyframes lift-out {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -355,6 +297,10 @@
   animation: wax-pulse 2.8s ease-in-out infinite;
 }
 
+.animate-lift-out {
+  animation: lift-out 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 .animate-seal-break,
 [data-reveal="playing"] .reveal-seal {
   animation: seal-break 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -368,6 +314,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-rise-in,
   .animate-unfold,
+  .animate-lift-out,
   .animate-wax-pulse,
   .animate-seal-break,
   .animate-seal-press,

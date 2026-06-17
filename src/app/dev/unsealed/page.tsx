@@ -25,7 +25,11 @@ export default function DevUnsealed() {
       <DevRevealReplay letterId="dev-unsealed" />
       <UnsealedView
         body={FIXTURE_BODY}
-        imageUrls={[]}
+        imageUrls={[
+          "/textures/cream-paper.png",
+          "/textures/natural-paper.png",
+          "/textures/cream-paper.png",
+        ]}
         letterId="dev-unsealed"
         expiresAt={EXPIRES_AT}
         isLoggedIn={false}
