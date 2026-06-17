@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createLetterAction, type CreateLetterState } from "./actions";
 import { slugify } from "@/lib/slugify";
+import type { FieldKey } from "@/lib/letter-validation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -46,6 +47,16 @@ const STEPS = [
 ] as const;
 
 const LAST_STEP = STEPS.length - 1;
+
+// Maps a server-side field error back to the wizard step that owns that field,
+// so a rejected submit lands the user on the step where they can fix it.
+const FIELD_TO_STEP: Record<FieldKey, number> = {
+  body: 0,
+  question: 2,
+  answer: 2,
+  receiver: LAST_STEP,
+  letter: LAST_STEP,
+};
 
 // How long (ms) the user must hold the wax seal to commit.
 const SEAL_HOLD_MS = 750;
@@ -584,6 +595,20 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
 
   const goBack = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
 
+  // Guard the final submit. The form sets `noValidate`, so the browser does NOT
+  // run constraint validation across every field on submit — which is what we
+  // want: the earlier steps' required fields live in `hidden` sections, and the
+  // browser cannot focus a hidden invalid control, so it would abort the submit
+  // with a console-only "An invalid form control is not focusable" and no UI.
+  // Each step was already gated by validateStep as the user advanced; here we
+  // re-check only the final step's visible fields before letting the action run.
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      if (!validateStep(LAST_STEP)) e.preventDefault();
+    },
+    [validateStep]
+  );
+
   // Called by WaxSeal when the gesture completes — validates and advances,
   // then moves focus to the receiver-name field on step 4 (Send).
   const handleSeal = useCallback(() => {
@@ -607,11 +632,29 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     setIsSealed(false);
   }, []);
 
+  // When the server rejects a submit with a field-tagged error, jump to the
+  // step that owns the offending field so the banner shows in context. This is
+  // the React "adjust state during render" pattern (guarded by the previous
+  // action result) — preferred over an effect, which would cascade a render.
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
+    if (state?.error && state.field) {
+      setStep(FIELD_TO_STEP[state.field]);
+    }
+  }
+
   // The seal is only enabled once both secret fields are filled.
   const sealEnabled = question.trim().length > 0 && answer.trim().length > 0;
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-6">
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={handleSubmit}
+      noValidate
+      className="space-y-6"
+    >
       {state?.error && (
         <div
           role="alert"
@@ -814,7 +857,14 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
                 name="question"
                 placeholder="e.g. What was the name of our dog?"
                 required
-                disabled={isPending || isSealed}
+                disabled={isPending}
+                /* Once sealed, lock the field with readOnly — NOT disabled.
+                   Disabled controls are omitted from the form submission, so a
+                   sealed (disabled) question never reached the server and the
+                   action rejected it with "Security question is required." */
+                readOnly={isSealed}
+                aria-readonly={isSealed}
+                className={isSealed ? "bg-muted/50 text-muted-foreground" : ""}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
@@ -832,9 +882,13 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
                   type={showAnswer ? "text" : "password"}
                   placeholder="e.g. Biscuit"
                   required
-                  disabled={isPending || isSealed}
+                  disabled={isPending}
+                  /* readOnly (not disabled) once sealed — see the question field
+                     above; a disabled answer would be dropped from the submit. */
+                  readOnly={isSealed}
+                  aria-readonly={isSealed}
                   autoComplete="off"
-                  className="pr-10"
+                  className={isSealed ? "pr-10 bg-muted/50 text-muted-foreground" : "pr-10"}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                 />
