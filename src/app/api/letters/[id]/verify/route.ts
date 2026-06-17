@@ -207,17 +207,29 @@ export async function POST(
   //
   // Cookie attributes (SPEC requirement):
   //   - httpOnly: JS in the browser cannot read it (XSS mitigation)
-  //   - Secure: only sent over HTTPS (set on all envs; Next.js dev uses http,
-  //             but Secure is harmless there since no HTTPS enforcement in dev)
+  //   - Secure: only sent over HTTPS — BUT a Secure cookie set over a plain-HTTP
+  //     connection is silently DROPPED by the browser. We therefore mark it
+  //     Secure only when the request actually arrived over HTTPS, so the claim
+  //     cookie persists in local/tunnelled HTTP dev (where it would otherwise be
+  //     dropped, leaving the opener locked out of a letter they just claimed)
+  //     while staying Secure in production. We trust x-forwarded-proto (set by
+  //     the platform/Cloudflare/Vercel proxy), falling back to the URL protocol.
   //   - SameSite=Lax: CSRF protection while allowing top-level navigations
   //   - path=/: scoped to the entire site (cookie is keyed by letterId in name)
   //   - maxAge: 24h matching the grace window
   const TWENTY_FOUR_HOURS_SECONDS = 24 * 60 * 60;
 
+  const forwardedProto = request.headers
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim();
+  const isHttps =
+    forwardedProto === "https" || request.nextUrl.protocol === "https:";
+
   const response = NextResponse.json({ status: "unlocked" });
   response.cookies.set(`claim:${letterId}`, newClaimToken, {
     httpOnly: true,
-    secure: true,
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     maxAge: TWENTY_FOUR_HOURS_SECONDS,
