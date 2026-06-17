@@ -18,7 +18,7 @@ import { RevealOnce } from "./RevealOnce";
 import { KeepButton } from "./KeepButton";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { Countdown } from "./Countdown";
-import { LetterSheet } from "@/components/letter/LetterSheet";
+import { EnvelopeContents } from "@/components/letter/EnvelopeContents";
 
 /**
  * Title-case a receiver slug for the greeting.
@@ -178,7 +178,7 @@ export function UnsealedView({
           It&rsquo;s really you.
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Here&rsquo;s your letter.
+          The envelope&rsquo;s open — see what&rsquo;s inside.
         </p>
       </div>
     </div>
@@ -191,49 +191,24 @@ export function UnsealedView({
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl animate-rise-in">
         {/*
-         * RevealOnce wraps the server-rendered children WITHOUT receiving `body`
-         * as a prop. The chrome (header) animates; everything below — the body,
-         * gallery, expiry footer, and ALL keep-flow branches — is passed as React
-         * `children`, server-rendered and readable from frame one (no
-         * animate-unfold). RevealOnce never re-fetches and never re-renders body.
+         * RevealOnce animates only the chrome (the open-envelope header). Its
+         * children — the EnvelopeContents lootbox (letter + photos) and the
+         * keep-flow footer — are passed straight through; RevealOnce never
+         * re-fetches them and only toggles a class on the chrome above.
          */}
         <RevealOnce letterId={letterId} chrome={chrome}>
-          <LetterSheet
-            className="mx-auto w-full"
-            sheetClassName="min-h-[18rem]"
-            contentClassName="px-7 py-9 sm:px-10 sm:py-11"
-            textureName="natural-paper"
-            aging
-            folds
-          >
-            {/*
-             * body is plain text; React escapes it by default.
-             * whitespace-pre-wrap preserves newlines without split/map
-             * (which would inject double newlines). Rendered at opacity 1 —
-             * the body must be readable the instant the page paints.
-             */}
-            <div className="font-serif text-foreground text-base leading-[1.85] tracking-[0.01em] whitespace-pre-wrap">
-              {body}
-            </div>
-
-            {/* Image gallery */}
-            {imageUrls.length > 0 && (
-              <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {imageUrls.map((url, i) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Image ${i + 1}`}
-                    className="w-full rounded-xl border border-border object-cover"
-                  />
-                ))}
-              </div>
-            )}
-          </LetterSheet>
-
-          {/* Expiry + keep-flow footer — sits on the desk below the sheet. */}
-          <div className="mt-5 rounded-2xl border border-border/60 bg-muted/50 px-6 py-5 flex flex-col gap-3">
+          {/*
+           * EnvelopeContents is the "lootbox": the letter and the photos are two
+           * separate things you reach in and take out. It receives the body +
+           * signed image URLs (only ever rendered inside this cookie-validated
+           * grace branch) and the keep-flow footer below as a passthrough slot.
+           */}
+          <EnvelopeContents
+            body={body}
+            imageUrls={imageUrls}
+            footer={
+              /* Expiry + keep-flow footer — sits on the desk below the contents. */
+              <div className="rounded-2xl border border-border/60 bg-muted/50 px-6 py-5 flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               This letter is yours until{" "}
               <strong className="text-foreground">
@@ -282,7 +257,9 @@ export function UnsealedView({
                 — your progress is preserved while you do.
               </p>
             )}
-          </div>
+              </div>
+            }
+          />
         </RevealOnce>
       </div>
     </main>

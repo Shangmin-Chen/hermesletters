@@ -248,6 +248,23 @@
   }
 }
 
+/* Lootbox lift — an item springs up and settles as it's taken out of the
+   envelope. A touch of overshoot makes it feel physical, like it pops free. */
+@keyframes lift-out {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes wax-pulse {
   0%, 100% {
     transform: scale(1);
@@ -355,6 +372,10 @@
   animation: wax-pulse 2.8s ease-in-out infinite;
 }
 
+.animate-lift-out {
+  animation: lift-out 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 .animate-seal-break,
 [data-reveal="playing"] .reveal-seal {
   animation: seal-break 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -368,6 +389,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-rise-in,
   .animate-unfold,
+  .animate-lift-out,
   .animate-wax-pulse,
   .animate-seal-break,
   .animate-seal-press,

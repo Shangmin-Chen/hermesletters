@@ -12,6 +12,7 @@ import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
 import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
+import { PhotoGallery } from "@/components/letter/PhotoGallery";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
@@ -175,25 +176,17 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
             <div className="font-serif text-base text-foreground leading-[1.85] whitespace-pre-wrap tracking-[0.01em]">
               {contentRow.body}
             </div>
-
-            {/* ── Image gallery ─────────────────────────────────────────── */}
-            {validUrls.length > 0 && (
-              <div
-                className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 animate-rise-in"
-                style={{ animationDelay: "260ms" }}
-              >
-                {validUrls.map((url, i) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Attached image ${i + 1}`}
-                    className="w-full rounded-lg border border-border object-cover shadow-sm"
-                  />
-                ))}
-              </div>
-            )}
           </div>
+
+          {/* ── Photos — their own section, downloadable ──────────────────── */}
+          {validUrls.length > 0 && (
+            <div
+              className="border-t border-border px-6 py-6 sm:px-10 animate-rise-in"
+              style={{ animationDelay: "260ms" }}
+            >
+              <PhotoGallery urls={validUrls} />
+            </div>
+          )}
 
           {/* ── Footer ──────────────────────────────────────────────────── */}
           <footer className="border-t border-border bg-muted/50 px-6 py-4 text-center">
