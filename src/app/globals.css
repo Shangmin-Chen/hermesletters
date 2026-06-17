@@ -276,6 +276,73 @@
   }
 }
 
+/* Wax-seal press/settle — the inverse of seal-break. Used in the seal step
+   when the hold gesture completes: the seal stamps down with a brief squash
+   and springs back to resting scale. Applied to the <SealMark> wrapper div. */
+@keyframes seal-press {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.86) translateY(4px); }
+  70%  { transform: scale(1.04) translateY(-1px); }
+  100% { transform: scale(1)   translateY(0); }
+}
+
+/* Envelope closes: flap swings down and stamps shut — the forward motion of
+   the seal ritual. Applied to the envelope wrapper in the seal step after
+   a successful commit. */
+@keyframes envelope-close {
+  0%   { transform: scale(1) translateY(0); }
+  40%  { transform: scale(0.97) translateY(2px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+/* Seal flight — the resting wax seal travels straight up onto the envelope flap
+   when the hold completes, then presses into place. The clone is already
+   positioned on the envelope's center axis, so this is a purely vertical move
+   (--fly-y, measured at commit time) followed by an in-place shrink to its
+   stamped size (--fly-scale). Scale is anchored at the element's center — which,
+   because the seal art fills the clone, is the middle of the seal — so it never
+   drifts sideways. Two phases: glide up at full size, then stamp down. */
+@keyframes seal-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  60% {
+    transform: translate(var(--fly-x), var(--fly-y)) scale(1);
+  }
+  100% {
+    transform: translate(var(--fly-x), var(--fly-y)) scale(var(--fly-scale));
+  }
+}
+
+.animate-seal-fly {
+  animation: seal-fly 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Impact ripple — a ring that expands outward from the landing point the
+   instant the seal stamps down. */
+@keyframes seal-impact {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.animate-seal-impact {
+  animation: seal-impact 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-seal-press {
+  animation: seal-press 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-envelope-close {
+  animation: envelope-close 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .animate-rise-in {
   animation: rise-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -303,6 +370,10 @@
   .animate-unfold,
   .animate-wax-pulse,
   .animate-seal-break,
+  .animate-seal-press,
+  .animate-seal-fly,
+  .animate-seal-impact,
+  .animate-envelope-close,
   .animate-flap-open,
   [data-reveal="playing"] .reveal-seal,
   [data-reveal="playing"] .reveal-flap {
