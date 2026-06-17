@@ -209,54 +209,54 @@ export function UnsealedView({
             footer={
               /* Expiry + keep-flow footer — sits on the desk below the contents. */
               <div className="rounded-2xl border border-border/60 bg-muted/50 px-6 py-5 flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              This letter is yours until{" "}
-              <strong className="text-foreground">
-                <LocalDateTime date={expiresAt} />
-              </strong>{" "}
-              (<Countdown expiresAt={expiresAt} />).{" "}
-              Keep it, and it stays with you for good.
-            </p>
+                <p className="text-sm text-muted-foreground">
+                  This letter is yours until{" "}
+                  <strong className="text-foreground">
+                    <LocalDateTime date={expiresAt} />
+                  </strong>{" "}
+                  (<Countdown expiresAt={expiresAt} />).{" "}
+                  Keep it, and it stays with you for good.
+                </p>
 
-            {/* Branch 1: logged in + has profile → show the Keep button */}
-            {isLoggedIn && hasProfile && (
-              <KeepButton letterId={letterId} letterPath={letterPath} />
-            )}
+                {/* Branch 1: logged in + has profile → show the Keep button */}
+                {isLoggedIn && hasProfile && (
+                  <KeepButton letterId={letterId} letterPath={letterPath} />
+                )}
 
-            {/* Branch 2: logged in but no profile → must complete onboarding first */}
-            {isLoggedIn && !hasProfile && (
-              <p className="text-sm text-muted-foreground">
-                You need a handle before you can keep letters.{" "}
-                <Link
-                  href="/onboarding"
-                  className="underline font-medium text-foreground hover:text-wax transition-colors"
-                >
-                  Finish setting up
-                </Link>
-                , then come back — your letter will be here.
-              </p>
-            )}
+                {/* Branch 2: logged in but no profile → must complete onboarding first */}
+                {isLoggedIn && !hasProfile && (
+                  <p className="text-sm text-muted-foreground">
+                    You need a handle before you can keep letters.{" "}
+                    <Link
+                      href="/onboarding"
+                      className="underline font-medium text-foreground hover:text-wax transition-colors"
+                    >
+                      Finish setting up
+                    </Link>
+                    , then come back — your letter will be here.
+                  </p>
+                )}
 
-            {/* Branch 3: not logged in → offer both log in and sign up, each
-                carrying next= so they land back here afterward */}
-            {!isLoggedIn && (
-              <p className="text-sm text-muted-foreground">
-                <Link
-                  href={`/login?next=${encodeURIComponent(letterPath)}`}
-                  className="underline font-medium text-foreground hover:text-wax transition-colors"
-                >
-                  Log in to keep it
-                </Link>{" "}
-                or{" "}
-                <Link
-                  href={`/signup?next=${encodeURIComponent(letterPath)}`}
-                  className="underline font-medium text-foreground hover:text-wax transition-colors"
-                >
-                  sign up to keep it
-                </Link>{" "}
-                — your progress is preserved while you do.
-              </p>
-            )}
+                {/* Branch 3: not logged in → offer both log in and sign up, each
+                    carrying next= so they land back here afterward */}
+                {!isLoggedIn && (
+                  <p className="text-sm text-muted-foreground">
+                    <Link
+                      href={`/login?next=${encodeURIComponent(letterPath)}`}
+                      className="underline font-medium text-foreground hover:text-wax transition-colors"
+                    >
+                      Log in to keep it
+                    </Link>{" "}
+                    or{" "}
+                    <Link
+                      href={`/signup?next=${encodeURIComponent(letterPath)}`}
+                      className="underline font-medium text-foreground hover:text-wax transition-colors"
+                    >
+                      sign up to keep it
+                    </Link>{" "}
+                    — your progress is preserved while you do.
+                  </p>
+                )}
               </div>
             }
           />
