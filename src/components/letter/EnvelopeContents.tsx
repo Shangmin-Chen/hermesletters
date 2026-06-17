@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { FileText, Images } from "lucide-react";
-import { LetterSheet } from "@/components/letter/LetterSheet";
+import { FileText, Images, ArrowLeft } from "lucide-react";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
 
 interface EnvelopeContentsProps {
@@ -12,19 +11,22 @@ interface EnvelopeContentsProps {
   imageUrls: string[];
   /**
    * The expiry + keep-flow footer, server-rendered and passed through. It always
-   * stays below the contents so the keep action is reachable from the start.
+   * stays below the contents so the keep action is reachable from every view.
    */
   footer: ReactNode;
 }
+
+/** Which thing is currently out of the envelope. Only ever one at a time. */
+type View = "tray" | "letter" | "photos";
 
 /**
  * EnvelopeContents — the "lootbox" of an opened letter.
  *
  * Inside the envelope are two separate things you reach in and take out: the
- * LETTER (a paper sheet) and the PHOTOS (a gallery). Each sits as a closed item
- * in a tray; tapping it lifts it out — the letter unfolds onto paper, the photos
- * open as a gallery with per-photo and download-all options. Items already taken
- * out drop out of the tray; the keep-flow footer stays put underneath.
+ * LETTER (a paper sheet) and the PHOTOS (a gallery). You can only have ONE out
+ * at a time — opening either replaces the tray, and a "Put it back in the
+ * envelope" control returns you to the tray to choose the other. The keep-flow
+ * footer stays visible in every view.
  */
 export function EnvelopeContents({
   body,
@@ -32,37 +34,31 @@ export function EnvelopeContents({
   footer,
 }: EnvelopeContentsProps) {
   const hasPhotos = imageUrls.length > 0;
-  const [letterOut, setLetterOut] = useState(false);
-  const [photosOut, setPhotosOut] = useState(false);
-
-  // Tray is gone once everything's been lifted out.
-  const trayVisible = !letterOut || (hasPhotos && !photosOut);
+  const [view, setView] = useState<View>("tray");
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── The tray of things still inside the envelope ──────────────────── */}
-      {trayVisible && (
+      {/* ── The tray: the things still inside the envelope ────────────────── */}
+      {view === "tray" && (
         <div className="flex flex-col items-center gap-4">
           <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
             Reach in
           </p>
           <div className="grid w-full gap-3 sm:grid-cols-2">
-            {!letterOut && (
-              <TrayItem
-                icon={<FileText className="size-5" aria-hidden />}
-                title="The letter"
-                hint="Tap to unfold"
-                onClick={() => setLetterOut(true)}
-              />
-            )}
-            {hasPhotos && !photosOut && (
+            <TrayItem
+              icon={<FileText className="size-5" aria-hidden />}
+              title="The letter"
+              hint="Tap to unfold"
+              onClick={() => setView("letter")}
+            />
+            {hasPhotos && (
               <TrayItem
                 icon={<Images className="size-5" aria-hidden />}
                 title={`${imageUrls.length} ${
                   imageUrls.length === 1 ? "photo" : "photos"
                 }`}
                 hint="Tap to open"
-                onClick={() => setPhotosOut(true)}
+                onClick={() => setView("photos")}
                 preview={imageUrls[0]}
               />
             )}
@@ -70,38 +66,50 @@ export function EnvelopeContents({
         </div>
       )}
 
-      {/* ── The letter, taken out and unfolded ────────────────────────────── */}
-      {letterOut && (
-        <div className="animate-lift-out">
-          <LetterSheet
-            className="mx-auto w-full"
-            sheetClassName="min-h-[18rem]"
-            contentClassName="px-7 py-9 sm:px-10 sm:py-11"
-            textureName="natural-paper"
-            aging
-            folds
-          >
+      {/* ── The letter, taken out — plain paper, like the writing field ───── */}
+      {view === "letter" && (
+        <div className="flex flex-col gap-3 animate-lift-out">
+          <PutBack onClick={() => setView("tray")} />
+          <div className="rounded-xl border border-border overflow-hidden shadow-sm">
             {/*
-             * body is plain text; React escapes it by default. whitespace-pre-wrap
-             * preserves the writer's line breaks without splitting on newlines.
+             * Mirrors the compose "Write" field: a clean bg-paper sheet with the
+             * sender's serif type — no texture, aging, or trifold creases. body is
+             * plain text; React escapes it, whitespace-pre-wrap keeps line breaks.
              */}
-            <div className="font-serif text-foreground text-base leading-[1.85] tracking-[0.01em] whitespace-pre-wrap">
+            <div className="bg-paper px-6 py-5 font-serif text-base leading-[1.85] text-ink tracking-[0.01em] whitespace-pre-wrap">
               {body}
             </div>
-          </LetterSheet>
+          </div>
         </div>
       )}
 
       {/* ── The photos, taken out as their own gallery ────────────────────── */}
-      {photosOut && (
-        <div className="animate-lift-out rounded-2xl border border-border/60 bg-card/70 px-5 py-5 shadow-sm">
-          <PhotoGallery urls={imageUrls} />
+      {view === "photos" && (
+        <div className="flex flex-col gap-3 animate-lift-out">
+          <PutBack onClick={() => setView("tray")} />
+          <div className="rounded-2xl border border-border/60 bg-card/70 px-5 py-5 shadow-sm">
+            <PhotoGallery urls={imageUrls} />
+          </div>
         </div>
       )}
 
       {/* ── Keep / expiry footer (always reachable) ───────────────────────── */}
       {footer}
     </div>
+  );
+}
+
+/** "Put it back in the envelope" — returns to the tray to pick the other item. */
+function PutBack({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground underline-offset-2 hover:text-wax hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm min-h-[44px]"
+    >
+      <ArrowLeft className="size-4" aria-hidden />
+      Put it back in the envelope
+    </button>
   );
 }
 
