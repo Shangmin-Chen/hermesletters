@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 import { getUser, getProfile } from "@/lib/auth";
+import { zipFilter } from "@/lib/zip-filter";
 import { LockedView, UnsealedView, SealedView } from "./letter-views";
 
 // ---------------------------------------------------------------------------
@@ -106,11 +107,17 @@ export default async function LetterPage({ params }: PageProps) {
         .where(eq(letterImages.letterId, row.id))
         .orderBy(letterImages.position);
 
-      // Mint signed URLs server-side (never expose storage paths to client)
+      // Mint signed URLs server-side (never expose storage paths to client).
+      // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
       const signedUrls = await Promise.all(
         imageRows.map((img) => mintSignedUrl(img.storagePath))
       );
-      const validUrls = signedUrls.filter((u): u is string => u !== null);
+      const rowCaptions = imageRows.map((img) => img.caption ?? null);
+      const { a: validUrls, b: imageCaptions } = zipFilter(
+        signedUrls,
+        rowCaptions,
+        (url): url is string => url !== null
+      );
 
       // Determine auth state for the keep-flow UI (server-side, no body leakage)
       const [graceUser, graceProfile] = await Promise.all([
@@ -124,6 +131,7 @@ export default async function LetterPage({ params }: PageProps) {
         <UnsealedView
           body={row.body}
           imageUrls={validUrls}
+          imageCaptions={imageCaptions}
           letterId={row.id}
           expiresAt={row.expiresAt!}
           isLoggedIn={isLoggedIn}

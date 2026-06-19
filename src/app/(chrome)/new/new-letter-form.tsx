@@ -34,6 +34,7 @@ interface NewLetterFormProps {
 interface ImagePreview {
   file: File;
   objectUrl: string;
+  caption: string;
 }
 
 // Each step lists the required field names to validate before advancing.
@@ -525,7 +526,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         );
         const additions = images
           .filter((f) => !existing.has(`${f.name}:${f.size}`))
-          .map((file) => ({ file, objectUrl: URL.createObjectURL(file) }));
+          .map((file) => ({ file, objectUrl: URL.createObjectURL(file), caption: "" }));
         const next = [...prev, ...additions];
         syncInput(next);
         return next;
@@ -561,6 +562,17 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       });
     },
     [syncInput]
+  );
+
+  const updateCaption = useCallback(
+    (index: number, value: string) => {
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], caption: value };
+        return next;
+      });
+    },
+    []
   );
 
   // Run native validation on the current step's required fields before
@@ -779,7 +791,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             aria-label="Selected images"
           >
             {imagePreviews.map((preview, i) => (
-              <li key={preview.objectUrl} className="relative group">
+              <li key={preview.objectUrl} className="relative group flex flex-col gap-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview.objectUrl}
@@ -794,13 +806,32 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
                 >
                   <X className="size-3" aria-hidden />
                 </button>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground leading-none">
-                  {preview.file.name}
-                </p>
+                <input
+                  type="text"
+                  value={preview.caption}
+                  onChange={(e) => updateCaption(i, e.target.value)}
+                  placeholder="Add a caption (optional)"
+                  maxLength={200}
+                  disabled={isPending}
+                  aria-label={`Caption for ${preview.file.name}`}
+                  className="w-full rounded border border-border bg-transparent px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                />
               </li>
             ))}
           </ul>
         )}
+
+        {/* Hidden caption inputs — one per preview, in the same order as the
+            file input, so formData.getAll("caption")[i] aligns with
+            formData.getAll("images")[i] on the server. */}
+        {imagePreviews.map((preview, i) => (
+          <input
+            key={`caption-${i}-${preview.objectUrl}`}
+            type="hidden"
+            name="caption"
+            value={preview.caption}
+          />
+        ))}
       </section>
 
       {/* ── Step 3: Seal the letter ─────────────────────────────────────── */}

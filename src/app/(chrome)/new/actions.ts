@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireProfile } from "@/lib/auth";
 import { slugify } from "@/lib/slugify";
 import { bodyOk, slugFieldOk, type FieldKey } from "@/lib/letter-validation";
+import { zipFilter } from "@/lib/zip-filter";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
@@ -113,7 +114,14 @@ export async function createLetterAction(
   // We reject based on magic bytes (not client-supplied file.type).
   // This ensures no letter row is ever created for a rejected file.
   const imageFiles = formData.getAll("images") as File[];
-  const validImages = imageFiles.filter(
+  const rawCaptions = formData.getAll("caption") as string[];
+
+  // Zip captions to their files BEFORE filtering so the indices stay aligned.
+  // A zero-byte file (browser placeholder) drops its caption alongside itself.
+  const rawCaptionsFilled = imageFiles.map((_, i) => rawCaptions[i] ?? "");
+  const { a: validImages, b: validCaptions } = zipFilter(
+    imageFiles,
+    rawCaptionsFilled,
     (f) => f instanceof File && f.size > 0
   );
 
@@ -222,6 +230,7 @@ export async function createLetterAction(
           letterId,
           storagePath,
           position,
+          caption: [...(validCaptions[position] ?? "").trim()].slice(0, 200).join("") || null,
         }))
       );
     } catch {

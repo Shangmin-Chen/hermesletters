@@ -30,6 +30,11 @@ export default function DevUnsealed() {
           "/textures/natural-paper.png",
           "/textures/cream-paper.png",
         ]}
+        imageCaptions={[
+          "The view from the coast road that day",
+          null,
+          "The fire at dusk",
+        ]}
         letterId="dev-unsealed"
         expiresAt={EXPIRES_AT}
         isLoggedIn={false}

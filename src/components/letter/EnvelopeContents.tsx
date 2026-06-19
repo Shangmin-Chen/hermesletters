@@ -9,6 +9,8 @@ interface EnvelopeContentsProps {
   body: string;
   /** Signed photo URLs. When empty, only the letter is offered. */
   imageUrls: string[];
+  /** Optional captions aligned to `imageUrls` by index. */
+  imageCaptions?: (string | null)[];
   /**
    * The expiry + keep-flow footer, server-rendered and passed through. It always
    * stays below the contents so the keep action is reachable from every view.
@@ -31,6 +33,7 @@ type View = "tray" | "letter" | "photos";
 export function EnvelopeContents({
   body,
   imageUrls,
+  imageCaptions,
   footer,
 }: EnvelopeContentsProps) {
   const hasPhotos = imageUrls.length > 0;
@@ -88,7 +91,7 @@ export function EnvelopeContents({
         <div className="flex flex-col gap-3 animate-lift-out">
           <PutBack onClick={() => setView("tray")} />
           <div className="rounded-2xl border border-border/60 bg-card/70 px-5 py-5 shadow-sm">
-            <PhotoGallery urls={imageUrls} />
+            <PhotoGallery urls={imageUrls} captions={imageCaptions} />
           </div>
         </div>
       )}
