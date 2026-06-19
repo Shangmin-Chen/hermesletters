@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull, lte, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { letters, letterVerifyAttempts } from "@/db/schema";
+import { letters } from "@/db/schema";
 
 // ---------------------------------------------------------------------------
 // Authorization helper — constant-time comparison to avoid timing attacks
@@ -76,26 +76,8 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
   const expiredCount = flipped.length;
 
-  // ── 3. Prune stale rate-limit rows ────────────────────────────────────────
-  //
-  // The verify route prunes per-letter on each access (within the rolling
-  // window).  This DELETE catches the remainder: rows for letters that haven't
-  // had a verify call recently, preventing unbounded table growth.
-  //
-  // Safe interval: 1 hour.  The durable rate-limit window is 10 minutes, so
-  // any row older than 1 hour is well outside any active window and safe to
-  // discard.  Data preserved: letter rows and images are untouched.
-  const staleThreshold = sql`now() - interval '1 hour'`;
-
-  const pruned = await db
-    .delete(letterVerifyAttempts)
-    .where(lt(letterVerifyAttempts.createdAt, staleThreshold))
-    .returning({ id: letterVerifyAttempts.id });
-
-  const prunedCount = pruned.length;
-
-  // ── 4. Return summary (no sensitive data) ─────────────────────────────────
-  return NextResponse.json({ expired: expiredCount, prunedAttempts: prunedCount });
+  // ── 3. Return summary (no sensitive data) ─────────────────────────────────
+  return NextResponse.json({ expired: expiredCount });
 }
 
 export const GET = handler;

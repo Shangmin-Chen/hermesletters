@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface RevealOnceProps {
-  /** Stable letter id — keys the one-shot sessionStorage flag set by AnswerInput. */
+  /** Stable letter id — keys the one-shot sessionStorage flag set by the unlock handler. */
   letterId: string;
   /**
    * The envelope CHROME (open-envelope header: seal-break → flap-open beats).

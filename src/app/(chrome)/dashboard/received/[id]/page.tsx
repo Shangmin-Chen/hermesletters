@@ -39,7 +39,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
   // ── Step 1: load only the fields needed to authorize (defense-in-depth) ───
   //
-  // We intentionally do NOT select body / answer_normalized / claim_token here.
+  // We intentionally do NOT select body / claim_token here.
   // Sensitive content is only fetched AFTER the ownership check passes below.
   const [authRow] = await db
     .select({
@@ -75,7 +75,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
   // ── Step 2: ownership verified — now load body and images for rendering ────
   //
-  // answer_normalized and claim_token are never selected here.
+  // claim_token is never selected here.
   const [contentRow] = await db
     .select({ body: letters.body })
     .from(letters)
