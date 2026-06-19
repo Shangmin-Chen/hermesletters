@@ -20,6 +20,9 @@ export const letterImages = pgTable(
 
     /** Display order within the letter's image gallery (0-based). */
     position: integer("position").notNull().default(0),
+
+    /** Optional caption provided by the sender at upload time. */
+    caption: text("caption"),
   },
   (table) => [
     /** Supports efficient retrieval of all images for a given letter. */

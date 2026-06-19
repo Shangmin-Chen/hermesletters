@@ -138,6 +138,7 @@ export function LockedView({
 export function UnsealedView({
   body,
   imageUrls,
+  imageCaptions,
   letterId,
   expiresAt,
   isLoggedIn,
@@ -146,6 +147,7 @@ export function UnsealedView({
 }: {
   body: string;
   imageUrls: string[];
+  imageCaptions?: (string | null)[];
   letterId: string;
   expiresAt: Date;
   isLoggedIn: boolean;
@@ -206,6 +208,7 @@ export function UnsealedView({
           <EnvelopeContents
             body={body}
             imageUrls={imageUrls}
+            imageCaptions={imageCaptions}
             footer={
               /* Expiry + keep-flow footer — sits on the desk below the contents. */
               <div className="rounded-2xl border border-border/60 bg-muted/50 px-6 py-5 flex flex-col gap-3">

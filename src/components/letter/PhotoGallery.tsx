@@ -8,6 +8,8 @@ import { downloadPhoto, downloadAllPhotos } from "@/lib/download";
 interface PhotoGalleryProps {
   /** Short-lived signed image URLs (already minted server-side). */
   urls: string[];
+  /** Optional captions aligned to `urls` by index. May be shorter than `urls`. */
+  captions?: (string | null)[];
   className?: string;
 }
 
@@ -19,7 +21,7 @@ interface PhotoGalleryProps {
  * downloads every photo at once. All downloads go through `@/lib/download`,
  * which appends Supabase's `download` param so signed URLs save as files.
  */
-export function PhotoGallery({ urls, className }: PhotoGalleryProps) {
+export function PhotoGallery({ urls, captions, className }: PhotoGalleryProps) {
   // null → lightbox closed; otherwise the index of the open photo.
   const [active, setActive] = useState<number | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -96,32 +98,40 @@ export function PhotoGallery({ urls, className }: PhotoGalleryProps) {
 
       {/* Thumbnail grid */}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {urls.map((url, i) => (
-          <li key={i} className="group/photo relative">
-            <button
-              type="button"
-              onClick={() => setActive(i)}
-              className="block w-full overflow-hidden rounded-xl border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`View photo ${i + 1} of ${count}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`Photo ${i + 1}`}
-                className="aspect-square w-full object-cover transition-transform duration-300 group-hover/photo:scale-[1.03]"
-              />
-            </button>
-            {/* Per-thumbnail quick download */}
-            <button
-              type="button"
-              onClick={() => downloadPhoto(url, i)}
-              className="absolute right-1.5 top-1.5 inline-flex size-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm opacity-0 transition-opacity group-hover/photo:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`Download photo ${i + 1}`}
-            >
-              <Download className="size-3.5" aria-hidden />
-            </button>
-          </li>
-        ))}
+        {urls.map((url, i) => {
+          const caption = captions?.[i] ?? null;
+          return (
+            <li key={i} className="group/photo relative flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setActive(i)}
+                className="block w-full overflow-hidden rounded-xl border border-border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`View photo ${i + 1} of ${count}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={caption ?? `Photo ${i + 1}`}
+                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover/photo:scale-[1.03]"
+                />
+              </button>
+              {/* Per-thumbnail quick download */}
+              <button
+                type="button"
+                onClick={() => downloadPhoto(url, i)}
+                className="absolute right-1.5 top-1.5 inline-flex size-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm opacity-0 transition-opacity group-hover/photo:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Download photo ${i + 1}`}
+              >
+                <Download className="size-3.5" aria-hidden />
+              </button>
+              {caption && (
+                <p className="text-xs text-muted-foreground leading-snug px-0.5">
+                  {caption}
+                </p>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {/* Lightbox */}
@@ -178,13 +188,22 @@ export function PhotoGallery({ urls, className }: PhotoGalleryProps) {
               </button>
             )}
 
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={urls[active]}
-              alt={`Photo ${active + 1}`}
+            <div
+              className="flex flex-col items-center gap-2 max-h-full"
               onClick={(e) => e.stopPropagation()}
-              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={urls[active]}
+                alt={captions?.[active] ?? `Photo ${active + 1}`}
+                className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+              />
+              {captions?.[active] && (
+                <p className="text-sm text-white/80 text-center max-w-md px-2">
+                  {captions[active]}
+                </p>
+              )}
+            </div>
 
             {count > 1 && (
               <button

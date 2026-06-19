@@ -93,10 +93,17 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
     .orderBy(letterImages.position);
 
   // ── Mint signed URLs server-side (never expose storage paths to client) ───
+  // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
   const signedUrls = await Promise.all(
     imageRows.map((img) => mintSignedUrl(img.storagePath))
   );
-  const validUrls = signedUrls.filter((u): u is string => u !== null);
+  const zippedUrls = signedUrls.map((url, i) => ({
+    url,
+    caption: imageRows[i].caption ?? null,
+  }));
+  const validZipped = zippedUrls.filter((z): z is { url: string; caption: string | null } => z.url !== null);
+  const validUrls = validZipped.map((z) => z.url);
+  const validCaptions = validZipped.map((z) => z.caption);
 
   const savedDate = new Date(authRow.savedAt).toLocaleString("en-US", {
     month: "long",
@@ -184,7 +191,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
               className="border-t border-border px-6 py-6 sm:px-10 animate-rise-in"
               style={{ animationDelay: "260ms" }}
             >
-              <PhotoGallery urls={validUrls} />
+              <PhotoGallery urls={validUrls} captions={validCaptions} />
             </div>
           )}
 
