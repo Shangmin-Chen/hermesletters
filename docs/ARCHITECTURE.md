@@ -141,10 +141,10 @@ letter as expired, so an un-flipped-but-past-due letter still reads as expired.
 
 ## Auth, onboarding & handles
 
-- **Auth** is Supabase email + password (`/signup`, `/login`). Sign-up may
-  require email confirmation; `/auth/confirm` verifies the OTP and degrades
-  gracefully if confirmation is disabled. Every authorization decision uses
-  `supabase.auth.getUser()` (server-validated), never the unverified
+- **Auth** is Supabase email + password (`/signup`, `/login`). Email
+  confirmation is **disabled** — sign-up returns a live session immediately.
+  The `/auth/confirm` OTP route has been removed. Every authorization decision
+  uses `supabase.auth.getUser()` (server-validated), never the unverified
   `getSession()`.
 - **Onboarding** (`/onboarding`): on first sign-in the user picks a **stable
   handle** that lives in every letter URL and can't be changed. It's slugified,
@@ -186,7 +186,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | Route | Purpose |
 |---|---|
 | `/` | landing |
-| `/signup`, `/login`, `/auth/confirm`, `/auth/signout` | email + password auth (`?next=` preserved + validated through the whole chain) |
+| `/signup`, `/login`, `/auth/signout` | email + password auth (`?next=` preserved + validated through the whole chain); email confirmation disabled, `/auth/confirm` removed |
 | `/onboarding` | pick a stable handle on first sign-in |
 | `/dashboard` | Send mail (compose) + Received mail (saved letters) |
 | `/new` → `/new/created` | the compose ritual + the share-link confirmation |

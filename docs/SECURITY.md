@@ -62,8 +62,8 @@ Every post-auth `next` redirect passes through a single hardened guard
 rejecting `//host`, `/\host`, any backslash, `://`, and control characters — so
 the keep-flow round-trip can't be turned into an open redirect. The guard is
 applied at **every boundary** the path crosses: the login *and* signup
-pages/actions, `/auth/confirm`, and the onboarding page/action. A raw `next` is
-never trusted.
+pages/actions, and the onboarding page/action. A raw `next` is never trusted.
+(Email confirmation is disabled and `/auth/confirm` has been removed.)
 
 ## Other hardening
 
@@ -79,9 +79,10 @@ never trusted.
   `localStorage`; the answer is excluded by construction.
 - **Letter body is rendered as escaped plain text** with `whitespace-pre-wrap`,
   never `dangerouslySetInnerHTML`.
-- **Email-enumeration neutralized:** an already-registered address follows the
-  same "check your email" path as a fresh sign-up (the response stays
-  byte-identical). Sign-out uses a 303 redirect so the POST lands on `/` as a GET.
+- **Email-enumeration neutralized:** sign-up errors (including already-registered
+  addresses) return a single generic "Something went wrong. Please try again."
+  message — no path reveals whether the address is in use. Sign-out uses a 303
+  redirect so the POST lands on `/` as a GET.
 - **Slug collisions** on create are caught via the Postgres unique-violation and
   returned (not thrown) as "that letter name is taken," so the sender's draft
   survives in the mounted form.
