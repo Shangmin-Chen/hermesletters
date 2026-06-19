@@ -9,6 +9,12 @@ import { SealMark } from "@/components/brand/SealMark";
 // How long (ms) the recipient must hold to unseal the letter.
 const UNSEAL_HOLD_MS = 750;
 
+// How long (ms) after commit we wait before firing onUnseal(). The flap
+// animation runs to 700ms (0.15s delay + 0.55s); we fire slightly earlier so
+// the unlock round-trip overlaps the animation tail and the reveal feels
+// seamless rather than appending latency after the flap settles.
+const UNSEAL_COMMIT_MS = 600;
+
 // Geometry — mirrors WaxSeal's resting-seal constants.
 const REST_SEAL = 48; // px — interactive seal diameter on the flap
 const RING_BOX = 60; // px — charging-ring viewport
@@ -54,20 +60,22 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
   const pressStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const committingRef = useRef(false);
+  // Holds the pending commit timer so it can be cancelled on reset/unmount and
+  // never fire onUnseal() (a stray POST) after the component is torn down.
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fix (Fix 3): compute prefersReduced after mount via a media-query listener
-  // to avoid SSR/client hydration mismatch (window unavailable on server).
+  // Compute prefersReduced after mount (window is unavailable on the server)
+  // to avoid an SSR/client hydration mismatch.
   const [prefersReduced, setPrefersReduced] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // Use a listener callback — fires immediately and on future changes.
-    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      setPrefersReduced((e as MediaQueryListEvent).matches ?? (e as MediaQueryList).matches);
-    };
-    // Trigger once with the current state by dispatching through the handler.
-    handler(mq as unknown as MediaQueryListEvent);
-    mq.addEventListener("change", handler as (e: MediaQueryListEvent) => void);
-    return () => mq.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
+    // Indirect through `sync` so the initial read isn't a direct setState in the
+    // effect body (react-hooks/set-state-in-effect); window is client-only.
+    const sync = (matches: boolean) => setPrefersReduced(matches);
+    sync(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => sync(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   // Fix (Fix 1): reset internal unsealing/committing state when the parent bumps
@@ -80,6 +88,10 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    if (commitTimerRef.current !== null) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
     }
     pressStartRef.current = null;
     // Schedule state resets as a microtask so they land in a separate render,
@@ -139,13 +151,14 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
     }
 
     // Play the crack + flap-open sequence. The CSS keyframes in globals.css
-    // are gated on [data-unsealing="playing"] (new selectors appended below).
-    // The envelope + seal animation lasts ~550ms; we fire onUnseal right after.
+    // are gated on [data-unsealing="playing"]. We fire onUnseal at
+    // UNSEAL_COMMIT_MS so the unlock round-trip overlaps the animation tail.
     setUnsealing(true);
-    setTimeout(() => {
+    commitTimerRef.current = setTimeout(() => {
+      commitTimerRef.current = null;
       committingRef.current = false;
       onUnseal();
-    }, 600);
+    }, UNSEAL_COMMIT_MS);
   }, [disabled, unsealing, prefersReduced, cancelProgress, onUnseal]);
 
   const { longPressProps } = useLongPress({
@@ -172,10 +185,11 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
     },
   });
 
-  // Clean up rAF on unmount.
+  // Clean up rAF + pending commit timer on unmount.
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (commitTimerRef.current !== null) clearTimeout(commitTimerRef.current);
     };
   }, []);
 
@@ -302,12 +316,12 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
         className="w-56 text-sm text-center text-muted-foreground min-h-[1.25rem]"
         aria-live="polite"
       >
-        {unsealing
+        {unsealing || disabled
           ? "Opening…"
-          : disabled
-            ? "Opening…"
-            : progress > 0 && progress < 1
-              ? "Keep holding…"
+          : progress > 0 && progress < 1
+            ? "Keep holding…"
+            : prefersReduced
+              ? "Press to open"
               : "Press and hold to open"}
       </p>
     </div>
