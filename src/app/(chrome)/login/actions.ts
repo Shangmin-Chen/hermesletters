@@ -25,11 +25,8 @@ export async function loginAction(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Fix 8: map credential errors to a generic message to prevent email enumeration
-    if (error.message.toLowerCase().includes("email not confirmed")) {
-      return { error: "Please confirm your email address before logging in." };
-    }
-    // All other auth failures (invalid credentials, user not found, etc.) get a generic message
+    // All auth failures (invalid credentials, user not found, etc.) get a generic message.
+    // Email confirmation is disabled — there is no /auth/confirm route.
     return { error: "Invalid email or password." };
   }
 

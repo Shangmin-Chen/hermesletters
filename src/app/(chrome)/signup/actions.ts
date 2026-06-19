@@ -65,7 +65,14 @@ export async function signUpAction(
   const { handle, receiver, letterName } = letterCoords;
 
   const [letterRow] = await db
-    .select({ id: letters.id, claimToken: letters.claimToken })
+    .select({
+      id: letters.id,
+      claimToken: letters.claimToken,
+      status: letters.status,
+      openedAt: letters.openedAt,
+      expiresAt: letters.expiresAt,
+      savedBy: letters.savedBy,
+    })
     .from(letters)
     .where(
       and(
@@ -88,7 +95,24 @@ export async function signUpAction(
   const cookieName = `claim:${letterRow.id}`;
   const cookieValue = cookieStore.get(cookieName)?.value ?? null;
 
-  if (!cookieValue || cookieValue !== letterRow.claimToken) {
+  // Mirror save/route.ts's full predicate set exactly:
+  //   - status = 'opened'          → letter was claimed but not yet saved
+  //   - opened_at IS NOT NULL      → confirm it was actually opened
+  //   - claim_token = <cookieValue> → only the holder of the grace cookie
+  //   - expires_at > now()         → still within the 24h grace window
+  //   - saved_by IS NULL           → not yet saved
+  // Any failure returns the same gate message — do NOT reveal which check failed.
+  const now = new Date();
+  const claimValid =
+    cookieValue !== null &&
+    cookieValue === letterRow.claimToken &&
+    letterRow.status === "opened" &&
+    letterRow.openedAt !== null &&
+    letterRow.expiresAt !== null &&
+    letterRow.expiresAt > now &&
+    letterRow.savedBy === null;
+
+  if (!claimValid) {
     return {
       error:
         "You can only sign up after you've received a letter.",
@@ -110,19 +134,9 @@ export async function signUpAction(
     // Neutralise account-existence disclosure: treat "already registered" /
     // "user_already_exists" identically to a generic sign-up error so an
     // attacker cannot enumerate registered addresses by trying to sign up.
-    if (
-      error.message.toLowerCase().includes("already registered") ||
-      error.message.toLowerCase().includes("already exists") ||
-      error.code === "user_already_exists"
-    ) {
-      // Return the same friendly gate message — do NOT leak that the email
-      // is already in use, and do NOT redirect anywhere useful.
-      return {
-        error:
-          "Something went wrong. If you already have an account, please log in.",
-      };
-    }
-    return { error: error.message };
+    // Log the raw error server-side only — never leak internal detail to client.
+    console.error("[signUpAction] Supabase signUp error:", error);
+    return { error: "Something went wrong. Please try again." };
   }
 
   // With "Confirm email" disabled, session is set immediately.
@@ -130,12 +144,10 @@ export async function signUpAction(
   // return to their letter); existing profile → straight to next/dashboard.
   if (data.session) {
     const profile = await getProfile();
-    if (profile && next) {
-      redirect(next);
+    if (profile) {
+      redirect(next!);
     }
-    redirect(
-      next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding"
-    );
+    redirect(`/onboarding?next=${encodeURIComponent(next!)}`);
   }
 
   // Should not reach here when "Confirm email" is disabled, but be safe.
