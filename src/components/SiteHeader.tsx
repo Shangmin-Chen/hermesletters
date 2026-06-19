@@ -48,23 +48,17 @@ export async function SiteHeader() {
               </form>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/signup"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Get started
-              </Link>
-            </>
+            // Invite-only: no signup link in the header. Accounts are created
+            // only by keeping a letter. Existing users sign in here.
+            <Link
+              href="/login"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Sign in
+            </Link>
           )}
         </nav>
       </div>

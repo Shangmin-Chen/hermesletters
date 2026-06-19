@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,10 +58,8 @@ export function LoginForm({ next }: { next?: string | null }) {
             {pending ? "Logging in..." : "Log in"}
           </Button>
           <p className="text-sm text-muted-foreground text-center">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline underline-offset-4">
-              Sign up
-            </Link>
+            Hermes is invite-only — you get an account by keeping a letter
+            someone sends you.
           </p>
         </CardFooter>
       </form>

@@ -65,13 +65,10 @@ export default async function Home() {
               Go to dashboard
             </Link>
           ) : (
-            <>
-              <Link
-                href="/signup"
-                className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
-              >
-                Get started
-              </Link>
+            // Hermes is invite-only: there is no signup entry point here. You can
+            // only create an account by keeping a letter someone sent you. Existing
+            // users can still sign in.
+            <div className="flex flex-col items-center gap-3">
               <Link
                 href="/login"
                 className={cn(
@@ -81,7 +78,10 @@ export default async function Home() {
               >
                 Sign in
               </Link>
-            </>
+              <p className="text-sm text-muted-foreground">
+                Hermes is invite-only — you join by keeping a letter someone sends you.
+              </p>
+            </div>
           )}
         </div>
       </div>

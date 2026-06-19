@@ -294,25 +294,34 @@ export function UnsealedView({
                   </p>
                 )}
 
-                {/* Branch 3: not logged in → offer both log in and sign up, each
-                    carrying next= so they land back here afterward */}
+                {/* Branch 3: not logged in → this letter is their invite. Offer
+                    both log in and sign up, each carrying next= so they land back
+                    here afterward. Signup is gated server-side to letter recipients,
+                    so keeping this letter is the only way to create an account. */}
                 {!isLoggedIn && (
-                  <p className="text-sm text-muted-foreground">
-                    <Link
-                      href={`/login?next=${encodeURIComponent(letterPath)}`}
-                      className="underline font-medium text-foreground hover:text-wax transition-colors"
-                    >
-                      Log in to keep it
-                    </Link>{" "}
-                    or{" "}
-                    <Link
-                      href={`/signup?next=${encodeURIComponent(letterPath)}`}
-                      className="underline font-medium text-foreground hover:text-wax transition-colors"
-                    >
-                      sign up to keep it
-                    </Link>{" "}
-                    — your progress is preserved while you do.
-                  </p>
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      This letter is also your invitation to Hermes — keeping it
+                      creates your account.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      <Link
+                        href={`/signup?next=${encodeURIComponent(letterPath)}`}
+                        className="underline font-medium text-foreground hover:text-wax transition-colors"
+                      >
+                        Sign up to keep it
+                      </Link>{" "}
+                      or{" "}
+                      <Link
+                        href={`/login?next=${encodeURIComponent(letterPath)}`}
+                        className="underline font-medium text-foreground hover:text-wax transition-colors"
+                      >
+                        log in
+                      </Link>{" "}
+                      if you already have an account — your progress is preserved
+                      while you do.
+                    </p>
+                  </>
                 )}
               </div>
             }
