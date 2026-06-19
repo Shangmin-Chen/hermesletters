@@ -189,14 +189,14 @@ export function PhotoGallery({ urls, captions, className }: PhotoGalleryProps) {
             )}
 
             <div
-              className="flex flex-col items-center gap-2 max-h-full"
+              className="flex flex-col items-center gap-2 max-h-full min-h-0 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={urls[active]}
                 alt={captions?.[active] ?? `Photo ${active + 1}`}
-                className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+                className="min-h-0 max-h-full max-w-full rounded-lg object-contain shadow-2xl"
               />
               {captions?.[active] && (
                 <p className="text-sm text-white/80 text-center max-w-md px-2">

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireProfile } from "@/lib/auth";
 import { slugify } from "@/lib/slugify";
 import { bodyOk, slugFieldOk, secretOk, type FieldKey } from "@/lib/letter-validation";
+import { zipFilter } from "@/lib/zip-filter";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
@@ -125,15 +126,12 @@ export async function createLetterAction(
 
   // Zip captions to their files BEFORE filtering so the indices stay aligned.
   // A zero-byte file (browser placeholder) drops its caption alongside itself.
-  const zipped = imageFiles.map((f, i) => ({
-    file: f,
-    caption: rawCaptions[i] ?? "",
-  }));
-  const validZipped = zipped.filter(
-    (z) => z.file instanceof File && z.file.size > 0
+  const rawCaptionsFilled = imageFiles.map((_, i) => rawCaptions[i] ?? "");
+  const { a: validImages, b: validCaptions } = zipFilter(
+    imageFiles,
+    rawCaptionsFilled,
+    (f) => f instanceof File && f.size > 0
   );
-  const validImages = validZipped.map((z) => z.file);
-  const validCaptions = validZipped.map((z) => z.caption);
 
   // Read all array buffers and detect mime types up front.
   type ImageEntry = { file: File; buffer: ArrayBuffer; detectedMime: string };
@@ -262,7 +260,7 @@ export async function createLetterAction(
           letterId,
           storagePath,
           position,
-          caption: (validCaptions[position] ?? "").trim().slice(0, 200) || null,
+          caption: [...(validCaptions[position] ?? "").trim()].slice(0, 200).join("") || null,
         }))
       );
     } catch {

@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 import { getUser, getProfile } from "@/lib/auth";
+import { zipFilter } from "@/lib/zip-filter";
 import { LockedView, UnsealedView, SealedView } from "./letter-views";
 
 // ---------------------------------------------------------------------------
@@ -112,13 +113,12 @@ export default async function LetterPage({ params }: PageProps) {
       const signedUrls = await Promise.all(
         imageRows.map((img) => mintSignedUrl(img.storagePath))
       );
-      const zippedUrls = signedUrls.map((url, i) => ({
-        url,
-        caption: imageRows[i].caption ?? null,
-      }));
-      const validZipped = zippedUrls.filter((z): z is { url: string; caption: string | null } => z.url !== null);
-      const validUrls = validZipped.map((z) => z.url);
-      const imageCaptions = validZipped.map((z) => z.caption);
+      const rowCaptions = imageRows.map((img) => img.caption ?? null);
+      const { a: validUrls, b: imageCaptions } = zipFilter(
+        signedUrls,
+        rowCaptions,
+        (url): url is string => url !== null
+      );
 
       // Determine auth state for the keep-flow UI (server-side, no body leakage)
       const [graceUser, graceProfile] = await Promise.all([

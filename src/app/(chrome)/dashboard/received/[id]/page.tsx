@@ -14,6 +14,7 @@ import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
 import { cn } from "@/lib/utils";
+import { zipFilter } from "@/lib/zip-filter";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -97,13 +98,12 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
   const signedUrls = await Promise.all(
     imageRows.map((img) => mintSignedUrl(img.storagePath))
   );
-  const zippedUrls = signedUrls.map((url, i) => ({
-    url,
-    caption: imageRows[i].caption ?? null,
-  }));
-  const validZipped = zippedUrls.filter((z): z is { url: string; caption: string | null } => z.url !== null);
-  const validUrls = validZipped.map((z) => z.url);
-  const validCaptions = validZipped.map((z) => z.caption);
+  const rowCaptions = imageRows.map((img) => img.caption ?? null);
+  const { a: validUrls, b: validCaptions } = zipFilter(
+    signedUrls,
+    rowCaptions,
+    (url): url is string => url !== null
+  );
 
   const savedDate = new Date(authRow.savedAt).toLocaleString("en-US", {
     month: "long",
