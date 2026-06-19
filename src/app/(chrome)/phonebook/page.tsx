@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PhonebookPage() {
   const profile = await requireProfile();
-  const userId = profile.id as string;
+  const userId = profile.id;
 
   // ── Connection query (READ-MODEL only — no table created) ─────────────────
   //
@@ -56,6 +56,7 @@ export default async function PhonebookPage() {
       and(
         eq(letters.senderId, userId),
         isNotNull(letters.savedBy),
+        isNotNull(letters.savedAt),
         ne(letters.savedBy, userId)
       )
     )
@@ -86,7 +87,6 @@ export default async function PhonebookPage() {
     id: string;
     handle: string;
     displayName: string | null;
-    avatarUrl: string | null;
     sharedLetterCount: number;
   };
 
@@ -99,7 +99,6 @@ export default async function PhonebookPage() {
         id: profiles.id,
         handle: profiles.handle,
         displayName: profiles.displayName,
-        avatarUrl: profiles.avatarUrl,
       })
       .from(profiles)
       .where(inArray(profiles.id, connectedIds));
@@ -152,7 +151,7 @@ export default async function PhonebookPage() {
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {conn.sharedLetterCount}{" "}
-                      {conn.sharedLetterCount === 1 ? "letter" : "letters"}
+                      {conn.sharedLetterCount === 1 ? "shared letter" : "shared letters"}
                     </span>
                   </li>
                 ))}
