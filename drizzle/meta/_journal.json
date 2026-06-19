@@ -36,6 +36,13 @@
       "when": 1781888641790,
       "tag": "0004_clever_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781896942374,
+      "tag": "0005_wandering_gunslinger",
+      "breakpoints": true
     }
   ]
 }

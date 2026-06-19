@@ -1,9 +1,11 @@
 import "server-only";
 import { requireProfile } from "@/lib/auth";
+import { hasUnseenConnections } from "@/lib/connections";
 import { db } from "@/db";
 import { letters } from "@/db/schema";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
 import Link from "next/link";
+import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -42,6 +44,27 @@ export default async function DashboardPage() {
     )
     .orderBy(desc(letters.savedAt));
 
+  // ── You've got mail — direct letters addressed to me (metadata only) ──────
+  const inbox = await db
+    .select({
+      id: letters.id,
+      senderHandle: letters.senderHandle,
+      letterName: letters.letterName,
+      status: letters.status,
+      createdAt: letters.createdAt,
+    })
+    .from(letters)
+    .where(eq(letters.receiverId, profile.id))
+    .orderBy(desc(letters.createdAt));
+
+  const unreadCount = inbox.filter((m) => m.status === "unopened").length;
+
+  // New-connection red dot (cleared when the user visits the phonebook).
+  const showConnectionDot = await hasUnseenConnections(
+    profile.id,
+    profile.connections_seen_at ?? null
+  );
+
   const greeting = profile.display_name ?? profile.handle;
 
   return (
@@ -63,15 +86,86 @@ export default async function DashboardPage() {
             >
               Write a letter
             </Link>
-            <Link
-              href="/phonebook"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full sm:w-auto"
+            <span className="relative inline-flex w-full sm:w-auto">
+              <Link
+                href="/phonebook"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "w-full sm:w-auto"
+                )}
+              >
+                Phonebook
+              </Link>
+              {showConnectionDot && (
+                <span
+                  className="absolute -right-1 -top-1 size-2.5 rounded-full bg-destructive ring-2 ring-background"
+                  aria-label="New connection"
+                />
               )}
-            >
-              Phonebook
-            </Link>
+            </span>
+          </CardContent>
+        </Card>
+
+        {/* ── You've got mail — direct letters from connections ─────────────── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="font-serif text-xl">
+                You&apos;ve got mail
+              </CardTitle>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-destructive px-2.5 py-1 text-xs font-medium text-destructive-foreground">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+            <CardDescription>
+              Letters sent straight to you by your connections.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {inbox.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No mail yet. When a connection writes you directly, it lands here.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {inbox.map((mail) => {
+                  const unopened = mail.status === "unopened";
+                  return (
+                    <li key={mail.id}>
+                      <Link
+                        href={`/dashboard/inbox/${mail.id}`}
+                        className="flex items-center gap-3 py-4 transition-colors hover:text-primary"
+                      >
+                        <Envelope
+                          state={unopened ? "sealed" : "open"}
+                          className={cn(
+                            "size-8 shrink-0",
+                            unopened ? "text-wax" : "text-muted-foreground"
+                          )}
+                          aria-hidden
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium">
+                            {mail.letterName}
+                            {unopened && (
+                              <span className="ml-2 align-middle text-xs font-normal text-wax">
+                                · sealed
+                              </span>
+                            )}
+                          </p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            From @{mail.senderHandle}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
 

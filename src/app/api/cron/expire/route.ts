@@ -69,6 +69,10 @@ async function handler(request: NextRequest): Promise<NextResponse> {
       and(
         eq(letters.status, "opened"),
         isNull(letters.savedBy),
+        // Direct letters (receiver_id set) are permanent and never expire. They
+        // already can't match below because their expires_at is NULL, but exclude
+        // them explicitly so this stays correct if that ever changes.
+        isNull(letters.receiverId),
         lte(letters.expiresAt, sql`now()`)
       )
     )
