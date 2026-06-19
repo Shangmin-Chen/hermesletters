@@ -26,7 +26,7 @@ export default async function PhonebookPage() {
   //   Leg B — recipients who kept letters I sent:
   //            letters.sender_id = me AND letters.saved_by IS NOT NULL AND letters.saved_by != me
   //
-  // Only safe profile fields are selected (id, handle, display_name, avatar_url).
+  // Only safe profile fields are selected (id, handle, display_name).
   // No body, question, answer, or claim_token is ever read.
 
   // Leg A: sender IDs of letters I kept, with count
