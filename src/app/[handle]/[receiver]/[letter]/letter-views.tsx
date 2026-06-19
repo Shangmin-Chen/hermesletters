@@ -301,8 +301,8 @@ export function UnsealedView({
                 {!isLoggedIn && (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      This letter is also your invitation to Hermes — keeping it
-                      creates your account.
+                      This letter is also your invitation to Hermes&apos; Letters
+                      — keeping it creates your account.
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <Link

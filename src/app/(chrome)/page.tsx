@@ -65,9 +65,9 @@ export default async function Home() {
               Go to dashboard
             </Link>
           ) : (
-            // Hermes is invite-only: there is no signup entry point here. You can
-            // only create an account by keeping a letter someone sent you. Existing
-            // users can still sign in.
+            // Hermes' Letters is invite-only: there is no signup entry point here.
+            // You can only create an account by keeping a letter someone sent you.
+            // Existing users can still sign in.
             <div className="flex flex-col items-center gap-3">
               <Link
                 href="/login"
@@ -79,7 +79,7 @@ export default async function Home() {
                 Sign in
               </Link>
               <p className="text-sm text-muted-foreground">
-                Hermes is invite-only — you join by keeping a letter someone sends you.
+                Hermes&apos; Letters is invite-only — you join by keeping a letter someone sends you.
               </p>
             </div>
           )}
