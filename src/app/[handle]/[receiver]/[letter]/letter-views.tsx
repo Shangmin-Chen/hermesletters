@@ -1,19 +1,27 @@
 // ---------------------------------------------------------------------------
-// Presentational letter views — Locked / Unsealed / Sealed.
+// Letter views — Locked / Unsealed / Sealed.
 //
-// These are PURE view components: they render only from the props handed to
-// them and perform NO data access, auth, or cookie checks. All of the
-// security-sensitive gating (which row, which branch, whether `body`/images are
-// loaded at all) lives in the LetterPage server component in `page.tsx`, which
-// passes `body` + signed image URLs into UnsealedView ONLY inside the
-// cookie-validated grace branch. Extracting these views changes none of that —
-// it just lets the dev-only QA harness (`/dev/*`) render them with fixture
-// props, with zero auth or database.
+// UnsealedView and SealedView are pure presentational components: they render
+// only from props and perform no data access, auth, or cookie checks. All
+// security-sensitive gating lives in the LetterPage server component in
+// `page.tsx`, which passes `body` + signed image URLs into UnsealedView ONLY
+// inside the cookie-validated grace branch.
+//
+// LockedView is an interactive client component that owns the unlock network
+// request: it renders the WaxUnseal gesture, POSTs to
+// /api/letters/[id]/verify on commit, handles error states (expired /
+// already-opened / network failure) with user-visible retry messages, and
+// refreshes the router on success so the server component re-renders with the
+// claim cookie in place.
 // ---------------------------------------------------------------------------
 
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
-import { AnswerInput } from "./AnswerInput";
+import { WaxUnseal } from "@/components/letter/WaxUnseal";
 import { RevealOnce } from "./RevealOnce";
 import { KeepButton } from "./KeepButton";
 import { LocalDateTime } from "@/components/LocalDateTime";
@@ -69,34 +77,85 @@ function titleCaseName(slug: string): string {
 
 export function LockedView({
   letterId,
-  question,
-  answerShape,
   senderHandle,
   receiverName,
 }: {
   letterId: string;
-  question: string;
-  answerShape: string;
   senderHandle: string;
   receiverName: string;
 }) {
   // receiverName is a slug ("maya-lin"); title-case it for the greeting.
   const receiverDisplay = titleCaseName(receiverName);
 
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+  const router = useRouter();
+
+  function handleUnseal() {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/letters/${letterId}/verify`, {
+          method: "POST",
+        });
+
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { status?: string };
+          setResetKey((k) => k + 1);
+          if (data.status === "expired") {
+            setErrorMsg("This letter has slipped away.");
+            return;
+          }
+          if (data.status === "already_opened") {
+            setErrorMsg("Someone has already opened this one.");
+            return;
+          }
+          setErrorMsg("Something went wrong. Please try again.");
+          return;
+        }
+
+        const data = (await res.json()) as { status: string };
+
+        if (data.status === "unlocked") {
+          // Set the one-shot flag so RevealOnce plays the reveal exactly once.
+          try {
+            sessionStorage.setItem(`just-opened:${letterId}`, "1");
+          } catch {
+            // sessionStorage unavailable — reveal renders its final state.
+          }
+          // Cookie is now set server-side; reload so the Server Component
+          // re-renders the unsealed letter using the claim cookie.
+          router.refresh();
+          return;
+        }
+
+        if (data.status === "already_opened") {
+          setErrorMsg("Someone has already opened this one.");
+          return;
+        }
+
+        if (data.status === "expired") {
+          setErrorMsg("This letter has slipped away.");
+          return;
+        }
+
+        setErrorMsg("Something went wrong. Please try again.");
+      } catch {
+        setResetKey((k) => k + 1);
+        setErrorMsg("Something went wrong. Please try again.");
+      }
+    });
+  }
+
   return (
-    // The whole scene sits on the desk — the atmosphere layer (body::before sun
-    // pour / candle pool) reads as the surface. We drop the boxy card: the
-    // sealed envelope rests directly on the desk, with the prompt below it.
+    // The whole scene sits on the desk — the atmosphere layer reads as the
+    // surface. The sealed envelope rests directly on the desk with the
+    // unseal gesture below it.
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md animate-rise-in flex flex-col items-center text-center">
 
-        {/* Sealed envelope on the desk — wax seal breathing (idle pulse) */}
-        <div className="animate-wax-pulse drop-shadow-[0_8px_24px_oklch(0_0_0/0.18)]">
-          <Envelope state="sealed" className="w-24 h-24 text-ink" aria-hidden />
-        </div>
-
         {/* Greeting */}
-        <div className="mt-6">
+        <div className="mb-8">
           <h1 className="font-serif text-2xl font-semibold text-foreground leading-snug tracking-tight">
             {receiverDisplay}, you have a letter.
           </h1>
@@ -106,23 +165,18 @@ export function LockedView({
           </p>
         </div>
 
-        {/* The shared-secret prompt — sits on a faint paper inset so it reads as
-            a note pinned to the envelope, not a UI panel. */}
-        <div className="mt-8 w-full rounded-2xl border border-border/70 bg-card/70 px-6 py-7 shadow-sm flex flex-col items-center gap-6">
-          <div className="space-y-2">
-            <p className="text-xs text-wax uppercase tracking-[0.18em] font-medium">
-              Something only the two of you know
-            </p>
-            <p className="font-serif text-lg text-foreground leading-relaxed">
-              {question}
-            </p>
-          </div>
+        {/* Wax-unseal gesture — the recipient presses and holds to open */}
+        <WaxUnseal onUnseal={handleUnseal} disabled={isPending} resetKey={resetKey} />
 
-          {/* Underline input (client component — only receives safe fields) */}
-          <div className="w-full">
-            <AnswerInput letterId={letterId} answerShape={answerShape} />
-          </div>
-        </div>
+        {/* Error feedback */}
+        {errorMsg && (
+          <p
+            role="alert"
+            className="mt-5 text-sm text-destructive text-center"
+          >
+            {errorMsg}
+          </p>
+        )}
 
         {/* Subtle footer hint */}
         <p className="mt-5 text-xs text-muted-foreground">

@@ -9,7 +9,12 @@ const routes = [
   {
     href: "/dev/locked",
     label: "Locked letter",
-    desc: "The sealed envelope a recipient first sees, with the secret prompt.",
+    desc: "The sealed envelope a recipient first sees, with the wax-unseal gesture.",
+  },
+  {
+    href: "/dev/unsealing",
+    label: "Wax-unseal gesture",
+    desc: "WaxUnseal standalone — press and hold the seal to break it. Use Replay to re-play.",
   },
   {
     href: "/dev/unsealed",

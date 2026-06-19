@@ -311,6 +311,19 @@
   animation: reveal-flap-open 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Wax-unseal sequence — the recipient-side reverse of the seal ceremony.
+   [data-unsealing="playing"] gates both beats so they fire together: the seal
+   cracks and lifts off (.unseal-seal) while the flap swings open (.unseal-flap).
+   Reuses the existing seal-break and reveal-flap-open keyframes. */
+[data-unsealing="playing"] .unseal-seal {
+  animation: seal-break 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+[data-unsealing="playing"] .unseal-flap {
+  animation: reveal-flap-open 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.15s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-rise-in,
   .animate-unfold,
@@ -323,7 +336,9 @@
   .animate-envelope-close,
   .animate-flap-open,
   [data-reveal="playing"] .reveal-seal,
-  [data-reveal="playing"] .reveal-flap {
+  [data-reveal="playing"] .reveal-flap,
+  [data-unsealing="playing"] .unseal-seal,
+  [data-unsealing="playing"] .unseal-flap {
     animation: none;
     opacity: 1;
     transform: none;

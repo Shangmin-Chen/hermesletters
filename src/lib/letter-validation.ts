@@ -12,7 +12,7 @@ import { slugify } from "@/lib/slugify";
 
 /** Discriminator used by the server action's return type to route an error
  *  back to the form field that owns the offending value. */
-export type FieldKey = "receiver" | "letter" | "body" | "question" | "answer";
+export type FieldKey = "receiver" | "letter" | "body";
 
 /**
  * A letter body is acceptable when it has at least one non-whitespace char.
@@ -32,13 +32,4 @@ export function bodyOk(s: string): boolean {
  */
 export function slugFieldOk(s: string): boolean {
   return slugify(s).length > 0;
-}
-
-/**
- * The secret is acceptable when BOTH the question and the answer have at least
- * one non-whitespace character. The answer's content is never inspected beyond
- * non-emptiness here (and never persisted anywhere on the client).
- */
-export function secretOk(question: string, answer: string): boolean {
-  return question.trim().length > 0 && answer.trim().length > 0;
 }

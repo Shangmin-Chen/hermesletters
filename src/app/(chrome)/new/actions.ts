@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireProfile } from "@/lib/auth";
 import { slugify } from "@/lib/slugify";
-import { bodyOk, slugFieldOk, secretOk, type FieldKey } from "@/lib/letter-validation";
+import { bodyOk, slugFieldOk, type FieldKey } from "@/lib/letter-validation";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
@@ -58,15 +58,14 @@ async function detectImageMime(file: File): Promise<string | null> {
  *   1. Auth guard — derive sender_id and sender_handle from the verified profile.
  *   2. Validate + slugify inputs; reject empties early.
  *   3. Read & validate all image bytes/types (magic bytes, not file.type).
- *   4. Compute answer_normalized and answer_shape.
- *   5. INSERT letters row — catch unique-violation (letters_url_unique) and
+ *   4. INSERT letters row — catch unique-violation (letters_url_unique) and
  *      return a friendly error WITHOUT uploading anything.
- *   6. Upload images (service-role client, private bucket) at {letterId}/{file}.
- *   7. INSERT letter_images rows.
- *   8. On image-phase failure: delete uploaded storage objects + letter row
+ *   5. Upload images (service-role client, private bucket) at {letterId}/{file}.
+ *   6. INSERT letter_images rows.
+ *   7. On image-phase failure: delete uploaded storage objects + letter row
  *      (best-effort cleanup so we don't leave a half-created letter),
  *      then RETURN a friendly error (no throw).
- *   9. Redirect to the confirmation page.
+ *   8. Redirect to the confirmation page.
  */
 export async function createLetterAction(
   _prevState: CreateLetterState,
@@ -83,8 +82,6 @@ export async function createLetterAction(
   const rawReceiverName = (formData.get("receiver_name") as string | null) ?? "";
   const rawLetterName = (formData.get("letter_name") as string | null) ?? "";
   const rawBody = (formData.get("body") as string | null) ?? "";
-  const rawQuestion = (formData.get("question") as string | null) ?? "";
-  const rawAnswer = (formData.get("answer") as string | null) ?? "";
 
   // Shared predicates (letter-validation.ts) keep these checks in lockstep with
   // the client step-gates. Each early return is tagged with its owning field so
@@ -108,11 +105,6 @@ export async function createLetterAction(
       : { error: "Letter name is required.", field: "letter" };
   }
   if (!bodyOk(rawBody)) return { error: "Letter body is required.", field: "body" };
-  if (!secretOk(rawQuestion, rawAnswer)) {
-    return rawQuestion.trim()
-      ? { error: "Answer is required.", field: "answer" }
-      : { error: "Security question is required.", field: "question" };
-  }
 
   const receiverName = slugify(rawReceiverName);
   const letterName = slugify(rawLetterName);
@@ -142,23 +134,7 @@ export async function createLetterAction(
     imageEntries.push({ file, buffer, detectedMime });
   }
 
-  // ── Step 4: Compute answer_normalized and answer_shape ─────────────────────
-  //
-  // answer_normalized: lowercased + outer-whitespace trimmed.
-  //   Used for case-insensitive comparison on verify (inner spaces preserved).
-  //
-  // answer_shape: underline mask derived from answer.trim().
-  //   Placeholder convention (also used by Phase 5 renderer):
-  //     • every non-space character → "_"  (represents one underline slot)
-  //     • space characters → " "           (kept as-is; renders as a blank gap)
-  //   Example: "hello world" → "_____ _____"
-  //   This encodes character count + space positions WITHOUT revealing the answer.
-  const answerNormalized = rawAnswer.trim().toLowerCase();
-  const answerShape = rawAnswer
-    .trim()
-    .replace(/[^ ]/g, "_"); // replace every non-space char with "_"
-
-  // ── Step 5: Generate letterId up front & insert the letters row ───────────
+  // ── Step 4: Generate letterId up front & insert the letters row ───────────
   // Catch Postgres unique-violation (code 23505, constraint letters_url_unique)
   // and return a friendly error BEFORE any upload happens.
   const letterId = crypto.randomUUID();
@@ -171,9 +147,6 @@ export async function createLetterAction(
       receiverName,
       letterName,
       body: rawBody.trim(),
-      question: rawQuestion.trim(),
-      answerNormalized,
-      answerShape,
       status: "unopened",
     });
   } catch (err: unknown) {
@@ -197,7 +170,7 @@ export async function createLetterAction(
     throw err;
   }
 
-  // ── Step 6: Upload images (service-role, private bucket) ─────────────────
+  // ── Step 5: Upload images (service-role, private bucket) ─────────────────
   // Images go to: letters/{letterId}/{safeFilename}
   // Filenames are sanitized (no path separators, no leading dots, no control bytes)
   // and prefixed with their 0-based index to avoid collisions from duplicate names.
@@ -207,7 +180,7 @@ export async function createLetterAction(
   for (let i = 0; i < imageEntries.length; i++) {
     const { file, buffer, detectedMime } = imageEntries[i];
 
-    // Fix 5: Sanitize filename — strip path separators, leading dots, control/null bytes.
+    // Sanitize filename — strip path separators, leading dots, control/null bytes.
     const safeName =
       file.name
         .replace(/[/\\]/g, "")
@@ -223,7 +196,7 @@ export async function createLetterAction(
       });
 
     if (uploadError) {
-      // ── Step 8 (failure cleanup): delete uploaded objects + letter row ──
+      // ── Step 7 (failure cleanup): delete uploaded objects + letter row ──
       await Promise.allSettled(
         uploadedPaths.map((p) =>
           adminClient.storage.from("letters").remove([p])
@@ -232,9 +205,6 @@ export async function createLetterAction(
       await db.delete(letters).where(eq(letters.id, letterId)).catch((e) =>
         console.error("[createLetterAction] cleanup error deleting letter:", e)
       );
-      // Fix 4: Return friendly error instead of throwing, so form stays mounted.
-      // Image upload/registration failures route to the paper step (where the
-      // photo input lives) so the banner is shown beside the relevant control.
       return {
         error: "Something went wrong saving your letter. Please try again.",
         field: "body",
@@ -244,7 +214,7 @@ export async function createLetterAction(
     uploadedPaths.push(storagePath);
   }
 
-  // ── Step 7: Insert letter_images rows ────────────────────────────────────
+  // ── Step 6: Insert letter_images rows ────────────────────────────────────
   if (uploadedPaths.length > 0) {
     try {
       await db.insert(letterImages).values(
@@ -255,7 +225,7 @@ export async function createLetterAction(
         }))
       );
     } catch {
-      // ── Step 8 (failure cleanup): delete uploaded objects + letter row ──
+      // ── Step 7 (failure cleanup): delete uploaded objects + letter row ──
       await Promise.allSettled(
         uploadedPaths.map((p) =>
           adminClient.storage.from("letters").remove([p])
@@ -264,9 +234,6 @@ export async function createLetterAction(
       await db.delete(letters).where(eq(letters.id, letterId)).catch((e) =>
         console.error("[createLetterAction] cleanup error deleting letter:", e)
       );
-      // Fix 4: Return friendly error instead of throwing, so form stays mounted.
-      // Image upload/registration failures route to the paper step (where the
-      // photo input lives) so the banner is shown beside the relevant control.
       return {
         error: "Something went wrong saving your letter. Please try again.",
         field: "body",
@@ -274,7 +241,7 @@ export async function createLetterAction(
     }
   }
 
-  // ── Step 9: Redirect to confirmation page ─────────────────────────────────
+  // ── Step 8: Redirect to confirmation page ─────────────────────────────────
   const params = new URLSearchParams({
     handle: senderHandle,
     receiver: receiverName,

@@ -51,9 +51,8 @@ export default async function LetterPage({ params }: PageProps) {
   // ── Fetch the letter by URL triple (server-side Drizzle, bypasses RLS) ────
   //
   // SECURITY: We fetch ALL columns here so we can perform the cookie/expiry
-  // check, but we ONLY pass body / answerNormalized / images to the render
-  // tree in the validated grace branch. In all other branches those fields
-  // never reach the client.
+  // check, but we ONLY pass body / images to the render tree in the validated
+  // grace branch. In all other branches those fields never reach the client.
   const [row] = await db
     .select()
     .from(letters)
@@ -138,13 +137,11 @@ export default async function LetterPage({ params }: PageProps) {
     return <SealedView message="This letter has already been opened — it found its person." />;
   }
 
-  // 4. unopened — show the locked page (question + answer_shape only)
+  // 4. unopened — show the wax-unseal gesture
   if (row.status === "unopened") {
     return (
       <LockedView
         letterId={row.id}
-        question={row.question}
-        answerShape={row.answerShape}
         senderHandle={row.senderHandle}
         receiverName={receiver}
       />

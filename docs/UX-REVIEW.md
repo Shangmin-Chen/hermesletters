@@ -185,10 +185,10 @@ surface, and add an optional theme toggle in the header (#3).
 
 ## What's already working well
 
-- **`AnswerInput`** is the strongest component: idle/loading/incorrect/
-  already-opened/expired/rate-limited states, a cooldown timer, text re-selected
-  on a near-miss, terminal dead-ends that offer an exit instead of a silently
-  dead input, and warm, on-brand microcopy.
+- **`WaxUnseal`** is the strongest component: a press-and-hold gesture with a
+  charging-ring fill, dual-path input (long-press + keyboard Enter/Space),
+  reduced-motion support, retry-on-error via `resetKey`, and warm,
+  on-brand microcopy ("Press and hold to open" / "Keep holding…" / "Opening…").
 - **Reveal discipline** — the body is server-rendered and readable from the
   first frame; only the envelope chrome animates. Never making someone wait to
   read an emotional letter is exactly right.

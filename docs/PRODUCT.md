@@ -49,12 +49,13 @@ Receiving is the inverse ritual, in
 [`page.tsx`](../src/app/[handle]/[receiver]/[letter]/page.tsx) and
 [`letter-views.tsx`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx):
 
-1. **Locked** — a sealed wax envelope on the desk, the question framed as
-   *"something only the two of you know,"* and the answer-shape slots.
-2. **Reveal** — on a correct answer,
-   [`AnswerInput`](../src/app/[handle]/[receiver]/[letter]/AnswerInput.tsx) sets a
-   one-shot `sessionStorage` flag and refreshes; the server re-renders the
-   unsealed view, and [`RevealOnce`](../src/app/[handle]/[receiver]/[letter]/RevealOnce.tsx)
+1. **Locked** — a sealed wax envelope on the desk. The recipient presses and
+   holds the wax seal (750 ms, or keyboard Enter/Space) via
+   [`WaxUnseal`](../src/components/letter/WaxUnseal.tsx); a charging ring fills
+   as they hold.
+2. **Reveal** — on a successful unlock, `LockedView` sets a one-shot
+   `sessionStorage` flag and refreshes; the server re-renders the unsealed view,
+   and [`RevealOnce`](../src/app/[handle]/[receiver]/[letter]/RevealOnce.tsx)
    plays a brief (~≤800ms) envelope-chrome animation **once**, then clears the
    flag so re-reads within the grace window don't replay it.
 3. **Unsealed** — the letter on a paper sheet, with the expiry, a live countdown,
@@ -90,5 +91,4 @@ wax-pulse, flap-open, the fold) live alongside the tokens.
 - The compose wizard manages **focus per step** (focus moves to the new scene's
   heading) with a single polite `aria-live` announcement, and the borderless
   paper field keeps a visible focus ring meeting non-text contrast.
-- Letter body is escaped plain text; the answer input surfaces its character
-  count once and never leaks per-character feedback.
+- Letter body is escaped plain text (`whitespace-pre-wrap`, no `dangerouslySetInnerHTML`).

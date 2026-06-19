@@ -7,8 +7,7 @@ grace), see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## The core invariant
 
-> **`body`, `answer_normalized`, and `claim_token` never reach an
-> unauthenticated client.**
+> **`body` and `claim_token` never reach an unauthenticated client.**
 
 Everything below exists to uphold that one sentence.
 
@@ -25,8 +24,7 @@ Two data paths, deliberately separated:
 - **Supabase JS client (RLS-enforced)** — auth and RLS-protected client reads.
   Senders can `INSERT` letters scoped to themselves but **never read them back**
   (no sent-history). Saved letters are readable only by `saved_by = auth.uid()`.
-  `letter_images` and `letter_verify_attempts` have RLS on with **no client
-  policy** (default-deny).
+  `letter_images` has RLS on with **no client policy** (default-deny).
 
 ## The single validated branch
 
@@ -37,10 +35,13 @@ place: the cookie-validated grace branch of
 other path (unopened, opened-without-cookie, expired, saved-by-someone-else)
 renders a sealed view that never receives the content.
 
-The three letter views were extracted to
-[`letter-views.tsx`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx) as
-**pure presentational components** — they perform no data access, auth, or cookie
-checks. The gating lives entirely in the `LetterPage` server component. The
+The letter views live in
+[`letter-views.tsx`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx).
+`UnsealedView` and `SealedView` are pure presentational components — they
+perform no data access, auth, or cookie checks. `LockedView` is an interactive
+client component that owns the unlock POST (see below), but the security-
+sensitive gating (which row, whether `body` is loaded) lives entirely in the
+`LetterPage` server component. The
 reveal animation wrapper
 ([`RevealOnce.tsx`](../src/app/[handle]/[receiver]/[letter]/RevealOnce.tsx))
 receives the already-server-rendered body as React `children`, **never** as a
@@ -49,17 +50,10 @@ does not push `body` into a client payload.
 
 ## Rate limiting
 
-The lock is intentionally guessable, so the verify route
-([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) layers two
-caps:
-
-| Layer | Limit | Scope | Authority |
-|---|---|---|---|
-| In-memory fixed window | 10 / 5 min | `(letterId, IP)` | best-effort, per instance |
-| Durable (`letter_verify_attempts`) | 20 / 10 min | per letter | authoritative, survives spoofed IPs + multi-instance |
-
-Each attempt is recorded **before** the answer check; stale rows are pruned on
-each call and again by the cron job.
+The verify route
+([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) is
+protected by an in-memory fixed-window cap — **10 attempts / 5 min** per
+`(letterId, IP)` — to guard against brute-force on the wax-seal gesture.
 
 ## Redirect safety
 
