@@ -50,10 +50,14 @@ does not push `body` into a client payload.
 
 ## Rate limiting
 
-The verify route
-([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) is
-protected by an in-memory fixed-window cap — **10 attempts / 5 min** per
-`(letterId, IP)` — to guard against brute-force on the wax-seal gesture.
+With the security-question challenge removed, the unlock flow has no secret to
+brute-force: the verify route
+([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) authorizes a
+claim solely by possession of the unguessable letter URL (and its `claim_token`),
+and the claim is written under an atomic `saved_by IS NULL` guard that makes
+replay harmless. The former per-attempt rate limit (and the
+`letter_verify_attempts` table that backed it) was therefore retired alongside
+the question challenge.
 
 ## Redirect safety
 
