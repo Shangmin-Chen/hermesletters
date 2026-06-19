@@ -10,16 +10,15 @@ rules, see [SECURITY.md](./SECURITY.md). For the writing/reading experience, see
 The whole app is built around one tension: **a link anyone can hold, content
 only one person can ever take.** Three mechanics make that work:
 
-1. a **guessable-but-not-brute-forceable lock**,
+1. a **wax-seal gesture that opens the letter once**,
 2. an **atomic single-open claim**, and
 3. a **24-hour grace window** you either convert to ownership or lose.
 
-A signed-in sender writes a letter (text + optional images), locks it behind a
-personal question, and shares a human-readable URL. Anyone with the link can try
-to unlock it — but a letter **opens only once**. After the first correct answer
-it belongs to the opener (if they sign in within 24h) or it expires. The sender
-keeps no copy and gets no record: every letter is **fire-and-forget and burns on
-open**.
+A signed-in sender writes a letter (text + optional images) and shares a
+human-readable URL. The recipient presses and holds the wax seal to unseal it —
+but a letter **opens only once**. After the first successful unlock it belongs
+to the opener (if they sign in within 24h) or it expires. The sender keeps no
+copy and gets no record: every letter is **fire-and-forget and burns on open**.
 
 ## Stack
 
@@ -48,36 +47,24 @@ shadowing real routes (`login`, `dashboard`, `api`, `new`, …).
 
 ## The three mechanics
 
-### 1. The lock — question + answer
+### 1. The lock — wax-seal gesture
 
-When a sender composes a letter they write a free-text **question + answer**. The
-raw answer is **never stored or sent to any client**. `createLetterAction`
-([`src/app/new/actions.ts`](../src/app/new/actions.ts)) derives two fields
-instead:
+The locked page ships the visitor only the already-public handle and receiver
+name from the URL (used for the greeting). There is no question, answer, or
+shape — no knowledge factor at all. Access is purely *possession*: the right
+person has the link and presses and holds the wax seal to claim it.
 
-- **`answer_normalized`** = `answer.trim().toLowerCase()` — the only value a
-  guess is ever compared against (outer whitespace trimmed, inner spaces and
-  punctuation preserved, case-insensitive).
-- **`answer_shape`** = `answer.trim().replace(/[^ ]/g, "_")` — every non-space
-  char becomes `_`, spaces kept. `"San Diego"` → `"___ _____"`. This is the
-  *only* leak about the answer: character count and word breaks, nothing else.
+[`WaxUnseal.tsx`](../src/components/letter/WaxUnseal.tsx) renders a sealed
+envelope with the wax seal as a press-and-hold target (750 ms hold, or keyboard
+Enter/Space). A charging ring fills around the seal as the hold progresses; on
+commit, the seal cracks and the flap swings open, then
+[`LockedView`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx) POSTs
+to `/api/letters/[id]/verify`. If the POST fails (expired / already-opened /
+network error), `WaxUnseal` is reset via a `resetKey` prop so the user can retry
+without a full page reload.
 
-The locked page ships the visitor **only** `question` + `answer_shape` (plus the
-already-public handle and receiver name from the URL, used for the greeting).
-[`AnswerInput.tsx`](../src/app/[handle]/[receiver]/[letter]/AnswerInput.tsx)
-renders the shape as decorative underline slots under a single real input and
-POSTs the guess to `/api/letters/[id]/verify`. A **wrong guess reveals nothing**
-— just `{ status: "incorrect" }`, no "you're close", no per-character feedback.
-
-Because the lock is intentionally guessable, two rate limits stop brute force
-([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)):
-
-- a **fast in-memory** cap, **10 attempts / 5 min** per `(letterId, IP)` —
-  best-effort, per server instance;
-- the **authoritative durable** cap, **20 attempts / 10 min** per letter, counted
-  in the `letter_verify_attempts` table (service-role Drizzle), which holds even
-  against spoofed `X-Forwarded-For` or spread across instances. Old rows are
-  pruned on each call and by cron.
+The verify route is protected by an in-memory fixed-window cap —
+**10 attempts / 5 min** per `(letterId, IP)` — against replay/race abuse.
 
 ### 2. The atomic claim — open once, no races
 
@@ -141,7 +128,7 @@ letter as expired, so an un-flipped-but-past-due letter still reads as expired.
 
 | State | Meaning | Who can read content |
 |---|---|---|
-| **unopened** | never solved | nobody (locked page shows only question + shape) |
+| **unopened** | never unsealed | nobody (locked page shows the wax-seal gesture) |
 | **opened** (grace) | solved once, ≤24h ago | only the cookie holder |
 | **saved** | opener signed in during grace | `saved_by` user, forever, via Received mail |
 | **expired** | 24h passed, never saved | nobody |
@@ -176,9 +163,8 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | Table | Key columns | Notes |
 |---|---|---|
 | **profiles** | `id` (= `auth.users.id`), `handle` (unique), `display_name` | one row per user; `id` FK → `auth.users` `ON DELETE CASCADE` |
-| **letters** | `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `body`, `question`, `answer_normalized`, `answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique triple `letters_url_unique`; index on `saved_by` |
+| **letters** | `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `body`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique triple `letters_url_unique`; index on `saved_by` |
 | **letter_images** | `letter_id`, `storage_path`, `position` | `letter_id` FK → letters `ON DELETE CASCADE` |
-| **letter_verify_attempts** | `letter_id`, `created_at` | ephemeral; powers the durable rate limit; pruned by cron |
 
 **Migrations** (Drizzle, journal-tracked in [`drizzle/`](../drizzle/)):
 
@@ -187,7 +173,6 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
   RLS policies, and the private `letters` storage bucket. Hand-authored as a
   registered *custom* migration because it references Supabase-managed
   `auth`/`storage` schemas.
-- `0002` / `0003` — `letter_verify_attempts` table + its default-deny RLS.
 
 > The storage bucket is private with **no `storage.objects` RLS policies**: it's
 > accessed exclusively server-side via the secret key (which bypasses RLS) and
@@ -219,7 +204,7 @@ src/
   app/
     new/                       the compose ritual (ComposeLetter + scenes + fold)
     [handle]/[receiver]/[letter]/
-                               the letter page, its views, and AnswerInput
+                               the letter page and its views (LockedView owns the unlock POST)
     api/letters/[id]/          verify + save route handlers
     api/cron/expire/           scheduled expiry job
     dashboard/ login/ signup/ onboarding/ auth/

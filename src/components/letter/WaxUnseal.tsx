@@ -23,6 +23,12 @@ interface WaxUnsealProps {
   onUnseal: () => void;
   /** When true the gesture and animation are disabled (e.g. while the POST is in flight). */
   disabled?: boolean;
+  /**
+   * Called when the POST triggered by onUnseal fails (error or non-ok response).
+   * The parent should bump this counter to reset internal unsealing state so the
+   * user can retry without a full page reload.
+   */
+  resetKey?: number;
 }
 
 /**
@@ -40,7 +46,7 @@ interface WaxUnsealProps {
  *
  * Respects prefers-reduced-motion: commits instantly with no animation when set.
  */
-export function WaxUnseal({ onUnseal, disabled = false }: WaxUnsealProps) {
+export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsealProps) {
   const [progress, setProgress] = useState(0);     // 0–1 while held
   const [pressing, setPressing] = useState(false);  // true while pointer is down
   const [unsealing, setUnsealing] = useState(false); // animation playing
@@ -49,10 +55,42 @@ export function WaxUnseal({ onUnseal, disabled = false }: WaxUnsealProps) {
   const rafRef = useRef<number | null>(null);
   const committingRef = useRef(false);
 
-  const prefersReduced =
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false;
+  // Fix (Fix 3): compute prefersReduced after mount via a media-query listener
+  // to avoid SSR/client hydration mismatch (window unavailable on server).
+  const [prefersReduced, setPrefersReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // Use a listener callback — fires immediately and on future changes.
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setPrefersReduced((e as MediaQueryListEvent).matches ?? (e as MediaQueryList).matches);
+    };
+    // Trigger once with the current state by dispatching through the handler.
+    handler(mq as unknown as MediaQueryListEvent);
+    mq.addEventListener("change", handler as (e: MediaQueryListEvent) => void);
+    return () => mq.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
+  }, []);
+
+  // Fix (Fix 1): reset internal unsealing/committing state when the parent bumps
+  // resetKey (e.g. after a failed POST) so the user can retry without a page reload.
+  const prevResetKeyRef = useRef(0);
+  useEffect(() => {
+    if (resetKey === prevResetKeyRef.current) return;
+    prevResetKeyRef.current = resetKey;
+    committingRef.current = false;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    pressStartRef.current = null;
+    // Schedule state resets as a microtask so they land in a separate render,
+    // satisfying the no-synchronous-setState-in-effect lint rule.
+    const id = setTimeout(() => {
+      setUnsealing(false);
+      setProgress(0);
+      setPressing(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [resetKey]);
 
   // Tick progress while held — drives charging ring + scale/glow feedback.
   const startProgress = useCallback(() => {

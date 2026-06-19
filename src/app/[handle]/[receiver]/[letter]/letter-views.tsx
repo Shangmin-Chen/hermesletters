@@ -1,14 +1,18 @@
 // ---------------------------------------------------------------------------
-// Presentational letter views — Locked / Unsealed / Sealed.
+// Letter views — Locked / Unsealed / Sealed.
 //
-// These are PURE view components: they render only from the props handed to
-// them and perform NO data access, auth, or cookie checks. All of the
-// security-sensitive gating (which row, which branch, whether `body`/images are
-// loaded at all) lives in the LetterPage server component in `page.tsx`, which
-// passes `body` + signed image URLs into UnsealedView ONLY inside the
-// cookie-validated grace branch. Extracting these views changes none of that —
-// it just lets the dev-only QA harness (`/dev/*`) render them with fixture
-// props, with zero auth or database.
+// UnsealedView and SealedView are pure presentational components: they render
+// only from props and perform no data access, auth, or cookie checks. All
+// security-sensitive gating lives in the LetterPage server component in
+// `page.tsx`, which passes `body` + signed image URLs into UnsealedView ONLY
+// inside the cookie-validated grace branch.
+//
+// LockedView is an interactive client component that owns the unlock network
+// request: it renders the WaxUnseal gesture, POSTs to
+// /api/letters/[id]/verify on commit, handles error states (expired /
+// already-opened / network failure) with user-visible retry messages, and
+// refreshes the router on success so the server component re-renders with the
+// claim cookie in place.
 // ---------------------------------------------------------------------------
 
 "use client";
@@ -85,6 +89,7 @@ export function LockedView({
 
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
   const router = useRouter();
 
   function handleUnseal() {
@@ -94,8 +99,9 @@ export function LockedView({
           method: "POST",
         });
 
-        if (!res.ok && res.status !== 200) {
+        if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { status?: string };
+          setResetKey((k) => k + 1);
           if (data.status === "expired") {
             setErrorMsg("This letter has slipped away.");
             return;
@@ -135,6 +141,7 @@ export function LockedView({
 
         setErrorMsg("Something went wrong. Please try again.");
       } catch {
+        setResetKey((k) => k + 1);
         setErrorMsg("Something went wrong. Please try again.");
       }
     });
@@ -159,7 +166,7 @@ export function LockedView({
         </div>
 
         {/* Wax-unseal gesture — the recipient presses and holds to open */}
-        <WaxUnseal onUnseal={handleUnseal} disabled={isPending} />
+        <WaxUnseal onUnseal={handleUnseal} disabled={isPending} resetKey={resetKey} />
 
         {/* Error feedback */}
         {errorMsg && (
