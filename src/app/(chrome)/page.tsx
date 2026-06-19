@@ -2,10 +2,21 @@ import Link from "next/link";
 import { getUser, getProfile } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { db } from "@/db";
+import { letters } from "@/db/schema";
+import { count, isNotNull } from "drizzle-orm";
+
+export const revalidate = 60;
 
 export default async function Home() {
   const user = await getUser();
   const profile = user ? await getProfile() : null;
+
+  // delivered = opened letters (openedAt not null)
+  const [{ delivered }] = await db
+    .select({ delivered: count() })
+    .from(letters)
+    .where(isNotNull(letters.openedAt));
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center p-6">
@@ -19,6 +30,10 @@ export default async function Home() {
           </p>
           <p className="text-sm leading-7 text-muted-foreground">
             It opens once — for the one person it was meant for, then it&apos;s gone.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Hermes has delivered {delivered.toLocaleString()}{" "}
+            {delivered === 1 ? "letter" : "letters"}.
           </p>
         </div>
 
