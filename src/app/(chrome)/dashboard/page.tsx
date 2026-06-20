@@ -21,49 +21,51 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const profile = await requireProfile();
 
-  // ── Received mail — metadata only, no body ────────────────────────────────
-  //
-  // Guard: saved_by must equal user's id AND saved_at must be non-null.
-  // The orphan caveat (drizzle/README.md): if a receiver's profile is deleted,
-  // the row gets saved_by = NULL but status = 'saved'. We explicitly require
-  // saved_by = profile.id AND saved_at IS NOT NULL so orphaned rows are excluded.
-  const receivedLetters = await db
-    .select({
-      id: letters.id,
-      senderHandle: letters.senderHandle,
-      receiverName: letters.receiverName,
-      letterName: letters.letterName,
-      savedAt: letters.savedAt,
-    })
-    .from(letters)
-    .where(
-      and(
-        eq(letters.savedBy, profile.id),
-        isNotNull(letters.savedAt)
+  const [receivedLetters, inbox, showConnectionDot] = await Promise.all([
+    // ── Received mail — metadata only, no body ──────────────────────────────
+    //
+    // Guard: saved_by must equal user's id AND saved_at must be non-null.
+    // The orphan caveat (drizzle/README.md): if a receiver's profile is deleted,
+    // the row gets saved_by = NULL but status = 'saved'. We explicitly require
+    // saved_by = profile.id AND saved_at IS NOT NULL so orphaned rows are excluded.
+    db
+      .select({
+        id: letters.id,
+        senderHandle: letters.senderHandle,
+        receiverName: letters.receiverName,
+        letterName: letters.letterName,
+        savedAt: letters.savedAt,
+      })
+      .from(letters)
+      .where(
+        and(
+          eq(letters.savedBy, profile.id),
+          isNotNull(letters.savedAt)
+        )
       )
-    )
-    .orderBy(desc(letters.savedAt));
+      .orderBy(desc(letters.savedAt)),
 
-  // ── You've got mail — direct letters addressed to me (metadata only) ──────
-  const inbox = await db
-    .select({
-      id: letters.id,
-      senderHandle: letters.senderHandle,
-      letterName: letters.letterName,
-      status: letters.status,
-      createdAt: letters.createdAt,
-    })
-    .from(letters)
-    .where(eq(letters.receiverId, profile.id))
-    .orderBy(desc(letters.createdAt));
+    // ── You've got mail — direct letters addressed to me (metadata only) ────
+    db
+      .select({
+        id: letters.id,
+        senderHandle: letters.senderHandle,
+        letterName: letters.letterName,
+        status: letters.status,
+        createdAt: letters.createdAt,
+      })
+      .from(letters)
+      .where(eq(letters.receiverId, profile.id))
+      .orderBy(desc(letters.createdAt)),
+
+    // New-connection red dot (cleared when the user visits the phonebook).
+    hasUnseenConnections(
+      profile.id,
+      profile.connections_seen_at ?? null
+    ),
+  ]);
 
   const unreadCount = inbox.filter((m) => m.status === "unopened").length;
-
-  // New-connection red dot (cleared when the user visits the phonebook).
-  const showConnectionDot = await hasUnseenConnections(
-    profile.id,
-    profile.connections_seen_at ?? null
-  );
 
   const greeting = profile.display_name ?? profile.handle;
 
