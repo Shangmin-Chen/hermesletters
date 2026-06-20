@@ -46,6 +46,7 @@ interface NewLetterFormProps {
 interface ImagePreview {
   file: File;
   objectUrl: string;
+  sourceKey: string;
   caption: string;
 }
 
@@ -66,6 +67,10 @@ const FIELD_TO_STEP: Record<FieldKey, number> = {
   receiver: LAST_STEP,
   letter: LAST_STEP,
 };
+
+function imageDedupeKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
 
 // How long (ms) the user must hold the wax seal to commit.
 const SEAL_HOLD_MS = 750;
@@ -575,49 +580,47 @@ export function NewLetterForm({
       const images = incoming.filter((f) => f.type.startsWith("image/"));
       if (images.length === 0) return;
 
-      const compressedImages: File[] = [];
-      // Keep this serial so a large multi-select does not spike CPU/memory.
+      const existing = new Set(previewsRef.current.map((p) => p.sourceKey));
+      const candidates: { file: File; sourceKey: string }[] = [];
       for (const file of images) {
-        try {
-          const compressed = await compressImage(file);
-          compressedImages.push(compressed);
-        } catch (err) {
-          console.error("Failed to compress image, using original file:", err);
-          compressedImages.push(file);
+        const sourceKey = imageDedupeKey(file);
+        if (!existing.has(sourceKey)) {
+          existing.add(sourceKey);
+          candidates.push({ file, sourceKey });
         }
       }
 
-      const existing = new Set(
-        previewsRef.current.map((p) => `${p.file.name}:${p.file.size}`)
-      );
+      if (candidates.length === 0) return;
 
       const additions: ImagePreview[] = [];
-      for (const file of compressedImages) {
-        const key = `${file.name}:${file.size}`;
-        if (!existing.has(key)) {
-          existing.add(key);
-          const url = URL.createObjectURL(file);
-          createdUrlsRef.current.add(url);
-          additions.push({
-            file,
-            objectUrl: url,
-            caption: "",
-          });
+      // Keep this serial so a large multi-select does not spike CPU/memory.
+      for (const { file, sourceKey } of candidates) {
+        let previewFile = file;
+        try {
+          previewFile = await compressImage(file);
+        } catch (err) {
+          console.error("Failed to compress image, using original file:", err);
         }
+
+        const url = URL.createObjectURL(previewFile);
+        createdUrlsRef.current.add(url);
+        additions.push({
+          file: previewFile,
+          objectUrl: url,
+          sourceKey,
+          caption: "",
+        });
       }
 
       if (additions.length === 0) return;
 
       setImagePreviews((prev) => {
-        const existingPrev = new Set(
-          prev.map((p) => `${p.file.name}:${p.file.size}`)
-        );
+        const existingPrev = new Set(prev.map((p) => p.sourceKey));
 
         const verified: ImagePreview[] = [];
         for (const addition of additions) {
-          const key = `${addition.file.name}:${addition.file.size}`;
-          if (!existingPrev.has(key)) {
-            existingPrev.add(key);
+          if (!existingPrev.has(addition.sourceKey)) {
+            existingPrev.add(addition.sourceKey);
             verified.push(addition);
           } else {
             URL.revokeObjectURL(addition.objectUrl);

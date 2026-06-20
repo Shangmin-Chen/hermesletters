@@ -9,7 +9,7 @@ import { LayoutDashboard } from "lucide-react";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
-import { adminClient } from "@/lib/supabase/admin";
+import { mintLetterImageSignedUrls } from "@/lib/supabase/signed-urls";
 import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
@@ -19,15 +19,6 @@ import { InboxLockedView } from "./InboxLockedView";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-/** Mint a short-lived signed URL for a private-bucket storage path. */
-async function mintSignedUrl(storagePath: string): Promise<string | null> {
-  const { data, error } = await adminClient.storage
-    .from("letters")
-    .createSignedUrl(storagePath, 60 * 60); // 1 hour
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
 }
 
 export default async function InboxLetterPage({ params }: PageProps) {
@@ -71,8 +62,8 @@ export default async function InboxLetterPage({ params }: PageProps) {
     .where(eq(letterImages.letterId, authRow.id))
     .orderBy(letterImages.position);
 
-  const signedUrls = await Promise.all(
-    imageRows.map((img) => mintSignedUrl(img.storagePath))
+  const signedUrls = await mintLetterImageSignedUrls(
+    imageRows.map((img) => img.storagePath)
   );
   const rowCaptions = imageRows.map((img) => img.caption ?? null);
   const { a: validUrls, b: validCaptions } = zipFilter(

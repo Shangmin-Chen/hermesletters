@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
-import { adminClient } from "@/lib/supabase/admin";
+import { mintLetterImageSignedUrls } from "@/lib/supabase/signed-urls";
 import Link from "next/link";
 import { LayoutDashboard } from "lucide-react";
 import { Envelope } from "@/components/brand/Envelope";
@@ -18,18 +18,6 @@ import { zipFilter } from "@/lib/zip-filter";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-/**
- * Mint a signed URL for a storage path in the private "letters" bucket.
- * Expires in 1 hour (short-lived URLs are safer even for owned content).
- */
-async function mintSignedUrl(storagePath: string): Promise<string | null> {
-  const { data, error } = await adminClient.storage
-    .from("letters")
-    .createSignedUrl(storagePath, 60 * 60); // 1 hour
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
 }
 
 export default async function ReceivedLetterPage({ params }: PageProps) {
@@ -95,8 +83,8 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
   // ── Mint signed URLs server-side (never expose storage paths to client) ───
   // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
-  const signedUrls = await Promise.all(
-    imageRows.map((img) => mintSignedUrl(img.storagePath))
+  const signedUrls = await mintLetterImageSignedUrls(
+    imageRows.map((img) => img.storagePath)
   );
   const rowCaptions = imageRows.map((img) => img.caption ?? null);
   const { a: validUrls, b: validCaptions } = zipFilter(

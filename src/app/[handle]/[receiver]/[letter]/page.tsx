@@ -8,8 +8,8 @@ import { cookies } from "next/headers";
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
-import { adminClient } from "@/lib/supabase/admin";
-import { getUser, getProfile } from "@/lib/auth";
+import { getUserAndProfile } from "@/lib/auth";
+import { mintLetterImageSignedUrls } from "@/lib/supabase/signed-urls";
 import { zipFilter } from "@/lib/zip-filter";
 import { LockedView, UnsealedView, SealedView } from "./letter-views";
 
@@ -23,22 +23,6 @@ interface PageProps {
     receiver: string;
     letter: string;
   }>;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Mint a signed URL for a storage path (private "letters" bucket).
- * Expires in 1 hour (grace window is 24h; short-lived URLs are safer).
- */
-async function mintSignedUrl(storagePath: string): Promise<string | null> {
-  const { data, error } = await adminClient.storage
-    .from("letters")
-    .createSignedUrl(storagePath, 60 * 60); // 1 hour
-  if (error || !data?.signedUrl) return null;
-  return data.signedUrl;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,8 +93,8 @@ export default async function LetterPage({ params }: PageProps) {
 
       // Mint signed URLs server-side (never expose storage paths to client).
       // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
-      const signedUrls = await Promise.all(
-        imageRows.map((img) => mintSignedUrl(img.storagePath))
+      const signedUrls = await mintLetterImageSignedUrls(
+        imageRows.map((img) => img.storagePath)
       );
       const rowCaptions = imageRows.map((img) => img.caption ?? null);
       const { a: validUrls, b: imageCaptions } = zipFilter(
@@ -120,10 +104,8 @@ export default async function LetterPage({ params }: PageProps) {
       );
 
       // Determine auth state for the keep-flow UI (server-side, no body leakage)
-      const [graceUser, graceProfile] = await Promise.all([
-        getUser(),
-        getProfile(),
-      ]);
+      const { user: graceUser, profile: graceProfile } =
+        await getUserAndProfile();
       const isLoggedIn = graceUser !== null;
       const hasProfile = graceProfile !== null;
 
