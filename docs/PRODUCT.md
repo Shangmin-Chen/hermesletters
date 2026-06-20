@@ -17,9 +17,16 @@ with all inputs always mounted; the steps are `hidden`-toggled `<section>`s, so
 | Step | Scene | Fields |
 |---|---|---|
 | 1 | **Paper** ([`PaperScene`](../src/app/new/PaperScene.tsx)) | the letter `body` on a borderless serif writing surface (auto-grow), optional photo tuck-in |
-| 2 | **Envelope** ([`EnvelopeScene`](../src/app/new/EnvelopeScene.tsx)) | `receiver_name` (To), `letter_name` (label) + live URL preview, read-only From @handle |
-| 3 | **Seal** ([`SealScene`](../src/app/new/SealScene.tsx)) | `question` + `answer` (show/hide), and a [`ReviewSummary`](../src/app/new/ReviewSummary.tsx) of everything before sealing |
+| 2 | **Photos** | optional images, each with an optional **caption** |
+| 3 | **Seal** | press-and-hold the **wax seal** to seal the letter (the ceremony, no knowledge factor — opening is possession-only) |
+| 4 | **Send** | `receiver_name` (To), `letter_name` (label) + live URL preview, read-only From @handle |
 | → | **Sent** (`/new/created`) | the one chance to copy the share link (persistent "copied" state + `beforeunload` guard) |
+
+> **Direct mode** (`/new?to=<handle>`, from the phonebook): the recipient is a
+> locked, server-validated connection instead of a free-text name, there is no URL
+> preview, and the letter lands permanently in their inbox — see
+> [ARCHITECTURE.md](./ARCHITECTURE.md#direct-letters--the-phonebook). Confirmation
+> is `/new/sent` (no share link).
 
 **The fold.** Pressing "Fold the letter" plays a Web Animations API **Z-fold** of
 a static, sliced-text clone of the page
@@ -33,8 +40,8 @@ letters fall back to a cheap shrink-drop or an instant cut — chosen by a JS
 
 **Safety and correctness baked in:**
 
-- **Draft autosave** to `localStorage` for receiver/letter/body/question — **never
-  the answer** (see [SECURITY.md](./SECURITY.md)).
+- **Draft autosave** to `localStorage` for the non-secret compose fields
+  (receiver, letter name, body).
 - **Validation parity:** the per-step gates and the server action import the same
   predicates from [`letter-validation.ts`](../src/lib/letter-validation.ts), so a
   bad slug (e.g. emoji-only) is caught at the owning step, not after submit.
@@ -64,6 +71,14 @@ Receiving is the inverse ritual, in
 A deliberate rule governs the reveal: **the body is server-rendered and readable
 from the first frame.** Only the envelope *chrome* animates — the app never makes
 someone wait to read an emotional letter.
+
+Once open, an invite letter's keep-flow footer is honest about the mechanics: the
+claim is bound to this browser via a cookie, so it can't follow you to
+incognito/another device, and it lapses after 24h. **Direct letters** skip all of
+this — they're already yours, opened from the dashboard **You've got mail** inbox
+(same wax-unseal ceremony) and kept forever. Photos in either kind render in a
+[`PhotoGallery`](../src/components/letter/PhotoGallery.tsx) grid + lightbox, each
+showing its optional caption.
 
 ## Theming
 

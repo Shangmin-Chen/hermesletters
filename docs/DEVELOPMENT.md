@@ -77,6 +77,7 @@ compose ritual and letter views hard to exercise in isolation.
 | `/dev` | index of the harness routes |
 | `/dev/compose` | the full compose ritual (drive the fold here) |
 | `/dev/locked` | the locked sealed-envelope view |
+| `/dev/unsealing` | the wax-unseal press-and-hold interaction, with a replay control |
 | `/dev/unsealed` | the reveal + letter-on-paper, with a "Replay reveal" button |
 | `/dev/sealed` | the already-opened / closed view |
 

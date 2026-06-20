@@ -98,18 +98,13 @@ visually identical to the one-line metadata inputs.
 clear two-block layout ("Your letter" / "Lock & address it") recovers most of
 the intent cheaply.
 
-### 6. Calling the lock a "Security question" with a password "Answer" field misframes the feature
-**Problem.** The compose form labels the prompt "Security question" and renders
-the answer as `<input type="password">`.
-**Why it's a problem.** The product framing is poetic — "something only the two
-of you know." "Security question" is the language of account-recovery forms, and
-a masked password field signals "credential," not "a shared memory." It also
-means the sender can't see what they typed to sanity-check it, on a field that
-is case-insensitive and unrecoverable after send.
-**Fix.** Rename to match the reader-side voice (e.g. "A question only they can
-answer" / "The answer"). Make the answer a normal text input with an optional
-show/hide toggle, and surface the same "they'll only see its length and spaces"
-reassurance shown on the locked page.
+### 6. ~~Calling the lock a "Security question" with a password "Answer" field misframes the feature~~ — RESOLVED
+**Resolved by removing the knowledge factor entirely.** The security-question
+challenge (the "Security question" label and the masked answer field that read as
+a credential) no longer exists. The lock is now **possession-only**: the recipient
+presses and holds a **wax seal** to open the letter — the ceremony the framing was
+always reaching for. See the wax-unseal flow in
+[ARCHITECTURE.md](./ARCHITECTURE.md#1-the-lock--wax-seal-gesture).
 
 ### 7. Image upload has no preview, list, size guidance, or progress
 **Problem.** The images input is a bare `<input type="file" multiple>`. No
