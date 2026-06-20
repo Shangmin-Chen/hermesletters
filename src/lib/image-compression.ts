@@ -34,7 +34,7 @@ async function isAnimated(file: File): Promise<boolean> {
     if (file.type === "image/png") {
       // Look for 'acTL' chunk (Animation Control Chunk)
       // ASCII values for 'a', 'c', 'T', 'L' are 97, 99, 84, 76
-      for (let i = 0; i < arr.length - 4; i++) {
+      for (let i = 0; i <= arr.length - 4; i++) {
         if (
           arr[i] === 97 &&     // 'a'
           arr[i + 1] === 99 && // 'c'
@@ -47,7 +47,7 @@ async function isAnimated(file: File): Promise<boolean> {
     } else if (file.type === "image/webp") {
       // Look for 'ANIM' chunk
       // ASCII values for 'A', 'N', 'I', 'M' are 65, 78, 73, 77
-      for (let i = 0; i < arr.length - 4; i++) {
+      for (let i = 0; i <= arr.length - 4; i++) {
         if (
           arr[i] === 65 &&     // 'A'
           arr[i + 1] === 78 && // 'N'
@@ -81,14 +81,14 @@ export async function compressImage(
     return file;
   }
 
-  // 2. Skip animated files (GIF, APNG, animated WebP)
-  const animated = await isAnimated(file);
-  if (animated) {
+  // 2. Skip small files (<= 500KB) - Done early to avoid parsing headers of small files
+  if (file.size <= 500 * 1024) {
     return file;
   }
 
-  // 3. Skip small files (<= 500KB)
-  if (file.size <= 500 * 1024) {
+  // 3. Skip animated files (GIF, APNG, animated WebP)
+  const animated = await isAnimated(file);
+  if (animated) {
     return file;
   }
 
@@ -102,72 +102,77 @@ export async function compressImage(
       img.onerror = null;
       URL.revokeObjectURL(tempUrl);
 
-      let width = img.width;
-      let height = img.height;
+      try {
+        let width = img.width;
+        let height = img.height;
 
-      // Handle 0-dimension images
-      if (width === 0 || height === 0) {
+        // Handle 0-dimension images
+        if (width === 0 || height === 0) {
+          resolve(file);
+          return;
+        }
+
+        // Resize proportionally if dimensions exceed thresholds using minimum scale factor
+        const scale = Math.min(maxW / width, maxH / height);
+        if (scale < 1) {
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file); // Fallback to raw file if canvas context is unavailable
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Maintain original MIME type if possible, fallback to image/jpeg
+        let outputType = file.type;
+        if (
+          outputType !== "image/png" &&
+          outputType !== "image/jpeg" &&
+          outputType !== "image/webp"
+        ) {
+          outputType = "image/jpeg";
+        }
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+
+            // Inspect the actual generated blob type to avoid mismatch if the browser falls back (e.g. WebP not supported)
+            const finalType = blob.type || outputType;
+
+            // Keep the filename prefix, change extension to match MIME type
+            let extension = ".jpg";
+            if (finalType === "image/png") extension = ".png";
+            else if (finalType === "image/webp") extension = ".webp";
+
+            const baseName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
+            const newName = `${baseName}${extension}`;
+
+            const compressedFile = new File([blob], newName, {
+              type: finalType,
+              lastModified: Date.now(),
+            });
+
+            resolve(compressedFile);
+          },
+          outputType,
+          quality
+        );
+      } catch (err) {
+        console.error("Canvas compression error, falling back to original file:", err);
         resolve(file);
-        return;
       }
-
-      // Resize proportionally if dimensions exceed thresholds using minimum scale factor
-      const scale = Math.min(maxW / width, maxH / height);
-      if (scale < 1) {
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(file); // Fallback to raw file if canvas context is unavailable
-        return;
-      }
-
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Maintain original MIME type if possible, fallback to image/jpeg
-      let outputType = file.type;
-      if (
-        outputType !== "image/png" &&
-        outputType !== "image/jpeg" &&
-        outputType !== "image/webp"
-      ) {
-        outputType = "image/jpeg";
-      }
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            resolve(file);
-            return;
-          }
-
-          // Inspect the actual generated blob type to avoid mismatch if the browser falls back (e.g. WebP not supported)
-          const finalType = blob.type || outputType;
-
-          // Keep the filename prefix, change extension to match MIME type
-          let extension = ".jpg";
-          if (finalType === "image/png") extension = ".png";
-          else if (finalType === "image/webp") extension = ".webp";
-
-          const baseName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-          const newName = `${baseName}${extension}`;
-
-          const compressedFile = new File([blob], newName, {
-            type: finalType,
-            lastModified: Date.now(),
-          });
-
-          resolve(compressedFile);
-        },
-        outputType,
-        quality
-      );
     };
 
     img.onerror = () => {

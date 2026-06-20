@@ -632,21 +632,11 @@ export function NewLetterForm({
     [addFiles]
   );
 
-  const removeImage = useCallback(
-    (index: number) => {
-      const target = previewsRef.current[index];
-      if (target) {
-        URL.revokeObjectURL(target.objectUrl);
-        createdUrlsRef.current.delete(target.objectUrl);
-      }
-      setImagePreviews((prev) => {
-        const next = [...prev];
-        next.splice(index, 1);
-        return next;
-      });
-    },
-    []
-  );
+  const removeImage = useCallback((url: string) => {
+    URL.revokeObjectURL(url);
+    createdUrlsRef.current.delete(url);
+    setImagePreviews((prev) => prev.filter((p) => p.objectUrl !== url));
+  }, []);
 
   const updateCaption = useCallback(
     (index: number, value: string) => {
@@ -884,7 +874,7 @@ export function NewLetterForm({
                 />
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
+                  onClick={() => removeImage(preview.objectUrl)}
                   className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-muted-foreground hover:text-destructive shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity"
                   aria-label={`Remove ${preview.file.name}`}
                 >
