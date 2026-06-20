@@ -36,6 +36,18 @@ export const letters = pgTable(
     /** Slugified recipient name (second URL segment). */
     receiverName: text("receiver_name").notNull(),
 
+    /**
+     * FK → profiles.id of the recipient, set ONLY for direct letters sent to an
+     * existing phonebook connection. NULL for invite letters (whose recipient is
+     * not yet a user). A letter is "direct" iff receiver_id IS NOT NULL: direct
+     * letters skip claim_token/expires_at/saved_by and live permanently in the
+     * recipient's inbox. Cascade-delete: a deleted recipient removes their
+     * recipient-owned direct letters.
+     */
+    receiverId: uuid("receiver_id").references(() => profiles.id, {
+      onDelete: "cascade",
+    }),
+
     /** Slugified letter name (third URL segment). */
     letterName: text("letter_name").notNull(),
 
@@ -84,6 +96,10 @@ export const letters = pgTable(
      */
     unique("letters_url_unique").on(t.senderHandle, t.receiverName, t.letterName),
     index("letters_saved_by_idx").on(t.savedBy),
+    /** Phonebook Leg B + sender-side queries. */
+    index("letters_sender_id_idx").on(t.senderId),
+    /** Inbox query: a recipient's direct letters by status. */
+    index("letters_receiver_id_status_idx").on(t.receiverId, t.status),
   ]
 );
 

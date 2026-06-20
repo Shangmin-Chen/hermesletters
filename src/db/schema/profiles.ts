@@ -16,6 +16,12 @@ export const profiles = pgTable("profiles", {
   handle: text("handle").notNull().unique(),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
+  /**
+   * Cursor for the new-connection red dot: the last time the user viewed their
+   * phonebook. A connection is "unseen" if any connection edge involving the
+   * user has a kept-letter saved_at newer than this. NULL = never viewed.
+   */
+  connectionsSeenAt: timestamp("connections_seen_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

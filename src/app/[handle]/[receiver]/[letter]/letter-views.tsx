@@ -275,6 +275,20 @@ export function UnsealedView({
                   Keep it, and it stays with you for good.
                 </p>
 
+                {/* Honest claim mechanics: the claim is bound to this browser via
+                    an httpOnly cookie (see verify/route.ts), so it can't follow the
+                    reader to incognito/another device, and lapses after 24h. */}
+                <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                  <strong className="text-foreground">
+                    Keep it from this browser.
+                  </strong>{" "}
+                  This letter is open now, and only you — on this device and
+                  browser — can keep it. The claim lives in a cookie here, so
+                  opening it again in a private/incognito window or on another
+                  device won&apos;t work, and clearing your cookies will lose it.
+                  You have 24 hours to keep it before it slips away for good.
+                </div>
+
                 {/* Branch 1: logged in + has profile → show the Keep button */}
                 {isLoggedIn && hasProfile && (
                   <KeepButton letterId={letterId} letterPath={letterPath} />

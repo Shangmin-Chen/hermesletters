@@ -1,0 +1,1 @@
+CREATE INDEX "letters_sender_id_idx" ON "letters" USING btree ("sender_id");

@@ -11,7 +11,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { createLetterAction, type CreateLetterState } from "./actions";
+import {
+  createLetterAction,
+  sendDirectLetterAction,
+  type CreateLetterState,
+} from "./actions";
 import { slugify } from "@/lib/slugify";
 import type { FieldKey } from "@/lib/letter-validation";
 import {
@@ -29,6 +33,13 @@ import { SealMark } from "@/components/brand/SealMark";
 
 interface NewLetterFormProps {
   senderHandle: string;
+  /**
+   * When set, the form is in DIRECT mode: it sends to this existing connection
+   * (server-validated) instead of an invite. The free-text receiver field and
+   * URL preview are replaced with a locked recipient, and it submits to
+   * sendDirectLetterAction.
+   */
+  directRecipient?: { handle: string; displayName: string | null };
 }
 
 interface ImagePreview {
@@ -482,11 +493,15 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
 
 // ── Main form ───────────────────────────────────────────────────────────────
 
-export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
+export function NewLetterForm({
+  senderHandle,
+  directRecipient,
+}: NewLetterFormProps) {
+  const isDirect = Boolean(directRecipient);
   const [state, formAction, isPending] = useActionState<
     CreateLetterState,
     FormData
-  >(createLetterAction, null);
+  >(isDirect ? sendDirectLetterAction : createLetterAction, null);
   const [step, setStep] = useState(0);
   const [receiverName, setReceiverName] = useState("");
   const [letterName, setLetterName] = useState("");
@@ -887,22 +902,41 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           Address &amp; send
         </h2>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="receiver_name">Receiver name</Label>
-          <Input
-            ref={receiverNameRef}
-            id="receiver_name"
-            name="receiver_name"
-            placeholder="e.g. Jane"
-            value={receiverName}
-            onChange={(event) => setReceiverName(event.target.value)}
-            required
-            disabled={isPending}
-          />
-          <p className="text-xs text-muted-foreground">
-            Who is this letter for? This becomes part of the URL.
-          </p>
-        </div>
+        {isDirect ? (
+          // Direct mode: recipient is locked to the chosen connection.
+          <div className="space-y-1.5">
+            <Label>To</Label>
+            <div className="rounded-md border border-border bg-muted px-4 py-3">
+              <p className="font-medium">@{directRecipient!.handle}</p>
+              {directRecipient!.displayName && (
+                <p className="text-sm text-muted-foreground">
+                  {directRecipient!.displayName}
+                </p>
+              )}
+            </div>
+            <input type="hidden" name="to" value={directRecipient!.handle} />
+            <p className="text-xs text-muted-foreground">
+              This letter lands straight in their inbox — no link to share.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="receiver_name">Receiver name</Label>
+            <Input
+              ref={receiverNameRef}
+              id="receiver_name"
+              name="receiver_name"
+              placeholder="e.g. Jane"
+              value={receiverName}
+              onChange={(event) => setReceiverName(event.target.value)}
+              required
+              disabled={isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Who is this letter for? This becomes part of the URL.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="letter_name">Letter name</Label>
@@ -920,15 +954,17 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           </p>
         </div>
 
-        <div className="rounded-md bg-muted px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">
-            Your letter URL will be:
-          </p>
-          <p id="url-preview" className="break-all font-mono text-sm">
-            /{senderHandle}/{receiverSlug || "<receiver>"}/
-            {letterSlug || "<letter>"}
-          </p>
-        </div>
+        {!isDirect && (
+          <div className="rounded-md bg-muted px-4 py-3">
+            <p className="mb-1 text-xs font-medium text-muted-foreground">
+              Your letter URL will be:
+            </p>
+            <p id="url-preview" className="break-all font-mono text-sm">
+              /{senderHandle}/{receiverSlug || "<receiver>"}/
+              {letterSlug || "<letter>"}
+            </p>
+          </div>
+        )}
       </section>
 
       {/* ── Navigation ──────────────────────────────────────────────────── */}
