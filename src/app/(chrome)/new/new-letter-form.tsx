@@ -523,10 +523,18 @@ export function NewLetterForm({
   // Write a list of previews back to the underlying file input so the form
   // submits exactly what's shown.
   const syncInput = useCallback((previews: ImagePreview[]) => {
-    if (!fileInputRef.current) return;
-    const dt = new DataTransfer();
-    previews.forEach((p) => dt.items.add(p.file));
-    fileInputRef.current.files = dt.files;
+    const input = fileInputRef.current;
+    if (!input) return;
+    if (previews.length === 0 && input.files?.length === 0) return;
+    if (typeof DataTransfer === "undefined") return;
+
+    try {
+      const dt = new DataTransfer();
+      previews.forEach((p) => dt.items.add(p.file));
+      input.files = dt.files;
+    } catch (err) {
+      console.error("Failed to sync selected images to the form input:", err);
+    }
   }, []);
 
   const previewsRef = useRef<ImagePreview[]>(imagePreviews);
