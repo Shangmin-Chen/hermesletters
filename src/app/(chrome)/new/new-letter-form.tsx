@@ -529,6 +529,41 @@ export function NewLetterForm({
     fileInputRef.current.files = dt.files;
   }, []);
 
+  const previewsRef = useRef<ImagePreview[]>(imagePreviews);
+  const createdUrlsRef = useRef<Set<string>>(new Set());
+
+  // Keep previewsRef in sync with state
+  useEffect(() => {
+    previewsRef.current = imagePreviews;
+  }, [imagePreviews]);
+
+  // Sync image previews to the file input
+  useEffect(() => {
+    syncInput(imagePreviews);
+  }, [imagePreviews, syncInput]);
+
+  // Reconcile and revoke discarded or removed object URLs
+  useEffect(() => {
+    const activeUrls = new Set(imagePreviews.map((p) => p.objectUrl));
+    createdUrlsRef.current.forEach((url) => {
+      if (!activeUrls.has(url)) {
+        URL.revokeObjectURL(url);
+        createdUrlsRef.current.delete(url);
+      }
+    });
+  }, [imagePreviews]);
+
+  // Cleanup all created URLs on unmount
+  useEffect(() => {
+    const urls = createdUrlsRef.current;
+    return () => {
+      urls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      urls.clear();
+    };
+  }, []);
+
   // Append image files (from browse or drag-and-drop) to the current list,
   // compressing them and skipping non-images and duplicates.
   const addFiles = useCallback(
@@ -536,23 +571,49 @@ export function NewLetterForm({
       const images = incoming.filter((f) => f.type.startsWith("image/"));
       if (images.length === 0) return;
 
-      const compressedImages = await Promise.all(
-        images.map((f) => compressImage(f))
+      const compressedImages: File[] = [];
+      // Compress files sequentially to prevent concurrent CPU/memory spikes
+      for (const file of images) {
+        const compressed = await compressImage(file);
+        compressedImages.push(compressed);
+      }
+
+      const existing = new Set(
+        previewsRef.current.map((p) => `${p.file.name}:${p.file.size}`)
       );
 
+      const additions: ImagePreview[] = [];
+      for (const file of compressedImages) {
+        const key = `${file.name}:${file.size}`;
+        if (!existing.has(key)) {
+          const url = URL.createObjectURL(file);
+          createdUrlsRef.current.add(url);
+          additions.push({
+            file,
+            objectUrl: url,
+            caption: "",
+          });
+        }
+      }
+
+      if (additions.length === 0) return;
+
       setImagePreviews((prev) => {
-        const existing = new Set(
+        const existingPrev = new Set(
           prev.map((p) => `${p.file.name}:${p.file.size}`)
         );
-        const additions = compressedImages
-          .filter((f) => !existing.has(`${f.name}:${f.size}`))
-          .map((file) => ({ file, objectUrl: URL.createObjectURL(file), caption: "" }));
-        const next = [...prev, ...additions];
-        syncInput(next);
-        return next;
+
+        const verified: ImagePreview[] = [];
+        for (const addition of additions) {
+          const key = `${addition.file.name}:${addition.file.size}`;
+          if (!existingPrev.has(key)) {
+            verified.push(addition);
+          }
+        }
+        return [...prev, ...verified];
       });
     },
-    [syncInput]
+    []
   );
 
   const handleFileChange = useCallback(
@@ -573,15 +634,18 @@ export function NewLetterForm({
 
   const removeImage = useCallback(
     (index: number) => {
+      const target = previewsRef.current[index];
+      if (target) {
+        URL.revokeObjectURL(target.objectUrl);
+        createdUrlsRef.current.delete(target.objectUrl);
+      }
       setImagePreviews((prev) => {
         const next = [...prev];
-        URL.revokeObjectURL(next[index].objectUrl);
         next.splice(index, 1);
-        syncInput(next);
         return next;
       });
     },
-    [syncInput]
+    []
   );
 
   const updateCaption = useCallback(
