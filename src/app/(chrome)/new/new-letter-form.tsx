@@ -18,6 +18,7 @@ import {
 } from "./actions";
 import { slugify } from "@/lib/slugify";
 import type { FieldKey } from "@/lib/letter-validation";
+import { compressImage } from "@/lib/image-compression";
 import {
   ArrowLeft,
   ArrowRight,
@@ -529,17 +530,21 @@ export function NewLetterForm({
   }, []);
 
   // Append image files (from browse or drag-and-drop) to the current list,
-  // skipping non-images and duplicates.
+  // compressing them and skipping non-images and duplicates.
   const addFiles = useCallback(
-    (incoming: File[]) => {
+    async (incoming: File[]) => {
       const images = incoming.filter((f) => f.type.startsWith("image/"));
       if (images.length === 0) return;
+
+      const compressedImages = await Promise.all(
+        images.map((f) => compressImage(f))
+      );
 
       setImagePreviews((prev) => {
         const existing = new Set(
           prev.map((p) => `${p.file.name}:${p.file.size}`)
         );
-        const additions = images
+        const additions = compressedImages
           .filter((f) => !existing.has(`${f.name}:${f.size}`))
           .map((file) => ({ file, objectUrl: URL.createObjectURL(file), caption: "" }));
         const next = [...prev, ...additions];
