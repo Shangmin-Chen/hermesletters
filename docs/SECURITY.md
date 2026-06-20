@@ -59,6 +59,35 @@ replay harmless. The former per-attempt rate limit (and the
 `letter_verify_attempts` table that backed it) was therefore retired alongside
 the question challenge.
 
+## Invite-only signup
+
+There is no open sign-up. An account can be created **only by keeping a letter you
+received**, so the only people who get in are people someone chose to write to.
+`signUpAction` ([`signup/actions.ts`](../src/app/(chrome)/signup/actions.ts))
+enforces this server-side *before* creating any account: it parses the `next`
+letter path, looks up the letter, and requires the request to carry the
+`claim:{letterId}` cookie matching that letter's `claim_token` **and** the same
+predicates the keep flow trusts (`status='opened'`, `opened_at` set, `expires_at >
+now()`, `saved_by IS NULL`). No valid claim → a generic refusal, no account. The
+sign-up UI is removed from the homepage, header, and login page; the page is only
+reachable from the keep-flow.
+
+## Direct letters
+
+Direct letters (`receiver_id` set) are addressed to a known user, so their access
+control is **identity-based, not cookie-based**:
+
+- **Sending** is gated by `areConnected(sender, recipient)`: the client-supplied
+  recipient handle is re-resolved and re-checked server-side, and self-sends are
+  blocked — you can only write to an existing connection.
+- **Opening** is an authenticated server action gated by an atomic UPDATE keyed on
+  `id + receiver_id = session user + status='unopened'` — no claim cookie, no
+  token. The inbox view loads `body`/images **only after** the
+  `receiver_id === session user` ownership check (404 otherwise); the inbox list is
+  metadata-only. An RLS policy `letters: select received by me`
+  (`receiver_id = auth.uid()`) backs this as defense-in-depth, though all real
+  reads go through the service-role Drizzle client.
+
 ## Redirect safety
 
 Every post-auth `next` redirect passes through a single hardened guard
@@ -78,9 +107,6 @@ pages/actions, and the onboarding page/action. A raw `next` is never trusted.
   happens *before* any DB insert; an image-phase failure rolls back the letter
   row and uploaded objects (no orphans). The compose form mirrors the allowlist
   client-side as a UX warning only — the server is the source of truth.
-- **The secret answer is never persisted client-side.** The compose form
-  autosaves only the non-secret fields (receiver, letter name, body, question) to
-  `localStorage`; the answer is excluded by construction.
 - **Letter body is rendered as escaped plain text** with `whitespace-pre-wrap`,
   never `dangerouslySetInnerHTML`.
 - **Email-enumeration neutralized:** sign-up errors (including already-registered
