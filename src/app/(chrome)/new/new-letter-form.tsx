@@ -18,6 +18,7 @@ import {
 } from "./actions";
 import { slugify } from "@/lib/slugify";
 import type { FieldKey } from "@/lib/letter-validation";
+import { compressImage } from "@/lib/image-compression";
 import {
   ArrowLeft,
   ArrowRight,
@@ -528,26 +529,100 @@ export function NewLetterForm({
     fileInputRef.current.files = dt.files;
   }, []);
 
+  const previewsRef = useRef<ImagePreview[]>(imagePreviews);
+  const createdUrlsRef = useRef<Set<string>>(new Set());
+
+  // Keep the async add path and hidden file input aligned with rendered state.
+  useEffect(() => {
+    previewsRef.current = imagePreviews;
+    syncInput(imagePreviews);
+  }, [imagePreviews, syncInput]);
+
+  // Revoke URLs that were created but did not survive the final state update.
+  useEffect(() => {
+    const activeUrls = new Set(imagePreviews.map((p) => p.objectUrl));
+    createdUrlsRef.current.forEach((url) => {
+      if (!activeUrls.has(url)) {
+        URL.revokeObjectURL(url);
+        createdUrlsRef.current.delete(url);
+      }
+    });
+  }, [imagePreviews]);
+
+  // Clean up any remaining preview URLs on unmount.
+  useEffect(() => {
+    const urls = createdUrlsRef.current;
+    return () => {
+      urls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      urls.clear();
+    };
+  }, []);
+
   // Append image files (from browse or drag-and-drop) to the current list,
-  // skipping non-images and duplicates.
+  // compressing them and skipping non-images and duplicates.
   const addFiles = useCallback(
-    (incoming: File[]) => {
+    async (incoming: File[]) => {
       const images = incoming.filter((f) => f.type.startsWith("image/"));
       if (images.length === 0) return;
 
+      const compressedImages: File[] = [];
+      // Keep this serial so a large multi-select does not spike CPU/memory.
+      for (const file of images) {
+        try {
+          const compressed = await compressImage(file);
+          compressedImages.push(compressed);
+        } catch (err) {
+          console.error("Failed to compress image, using original file:", err);
+          compressedImages.push(file);
+        }
+      }
+
+      const existing = new Set(
+        previewsRef.current.map((p) => `${p.file.name}:${p.file.size}`)
+      );
+
+      const additions: ImagePreview[] = [];
+      for (const file of compressedImages) {
+        const key = `${file.name}:${file.size}`;
+        if (!existing.has(key)) {
+          existing.add(key);
+          const url = URL.createObjectURL(file);
+          createdUrlsRef.current.add(url);
+          additions.push({
+            file,
+            objectUrl: url,
+            caption: "",
+          });
+        }
+      }
+
+      if (additions.length === 0) return;
+
       setImagePreviews((prev) => {
-        const existing = new Set(
+        const existingPrev = new Set(
           prev.map((p) => `${p.file.name}:${p.file.size}`)
         );
-        const additions = images
-          .filter((f) => !existing.has(`${f.name}:${f.size}`))
-          .map((file) => ({ file, objectUrl: URL.createObjectURL(file), caption: "" }));
-        const next = [...prev, ...additions];
-        syncInput(next);
-        return next;
+
+        const verified: ImagePreview[] = [];
+        for (const addition of additions) {
+          const key = `${addition.file.name}:${addition.file.size}`;
+          if (!existingPrev.has(key)) {
+            existingPrev.add(key);
+            verified.push(addition);
+          } else {
+            URL.revokeObjectURL(addition.objectUrl);
+            createdUrlsRef.current.delete(addition.objectUrl);
+          }
+        }
+
+        if (verified.length === 0) return prev;
+
+        return [...prev, ...verified];
       });
     },
-    [syncInput]
+    []
   );
 
   const handleFileChange = useCallback(
@@ -566,26 +641,19 @@ export function NewLetterForm({
     [addFiles]
   );
 
-  const removeImage = useCallback(
-    (index: number) => {
-      setImagePreviews((prev) => {
-        const next = [...prev];
-        URL.revokeObjectURL(next[index].objectUrl);
-        next.splice(index, 1);
-        syncInput(next);
-        return next;
-      });
-    },
-    [syncInput]
-  );
+  const removeImage = useCallback((url: string) => {
+    URL.revokeObjectURL(url);
+    createdUrlsRef.current.delete(url);
+    setImagePreviews((prev) => prev.filter((p) => p.objectUrl !== url));
+  }, []);
 
   const updateCaption = useCallback(
-    (index: number, value: string) => {
-      setImagePreviews((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], caption: value };
-        return next;
-      });
+    (url: string, value: string) => {
+      setImagePreviews((prev) =>
+        prev.map((preview) =>
+          preview.objectUrl === url ? { ...preview, caption: value } : preview
+        )
+      );
     },
     []
   );
@@ -805,8 +873,11 @@ export function NewLetterForm({
             className="grid grid-cols-3 gap-2 sm:grid-cols-4"
             aria-label="Selected images"
           >
-            {imagePreviews.map((preview, i) => (
-              <li key={preview.objectUrl} className="relative group flex flex-col gap-1">
+            {imagePreviews.map((preview) => (
+              <li
+                key={preview.objectUrl}
+                className="relative group flex flex-col gap-1"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview.objectUrl}
@@ -815,7 +886,7 @@ export function NewLetterForm({
                 />
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
+                  onClick={() => removeImage(preview.objectUrl)}
                   className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-muted-foreground hover:text-destructive shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-opacity"
                   aria-label={`Remove ${preview.file.name}`}
                 >
@@ -824,7 +895,9 @@ export function NewLetterForm({
                 <input
                   type="text"
                   value={preview.caption}
-                  onChange={(e) => updateCaption(i, e.target.value)}
+                  onChange={(e) =>
+                    updateCaption(preview.objectUrl, e.target.value)
+                  }
                   placeholder="Add a caption (optional)"
                   maxLength={200}
                   disabled={isPending}
