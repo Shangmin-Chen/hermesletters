@@ -26,7 +26,7 @@ export default async function Home() {
             Write a private letter.
           </h1>
           <p className="text-lg leading-8 text-muted-foreground">
-            Lock it behind a secret only they know.
+            Seal it with an interactive wax seal.
           </p>
           <p className="text-sm leading-7 text-muted-foreground">
             It opens once — for the one person it was meant for, then it&apos;s gone.
@@ -47,7 +47,7 @@ export default async function Home() {
           <div className="flex flex-col items-center gap-1.5">
             <span className="font-serif text-2xl text-ink">⊙</span>
             <span className="font-medium text-foreground">Seal</span>
-            <span>Lock it with a secret only the two of you know.</span>
+            <span>Generate a unique link to share with them.</span>
           </div>
           <div className="flex flex-col items-center gap-1.5">
             <span className="font-serif text-2xl text-ink">◌</span>

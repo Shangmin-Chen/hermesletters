@@ -66,6 +66,13 @@ export async function getConnections(userId: string): Promise<Connection[]> {
   ]);
 
   // Union and de-duplicate, accumulating letter counts per partner.
+  const legAMap = new Map<string, number>();
+  for (const row of legA) {
+    if (row.partnerId) {
+      legAMap.set(row.partnerId, Number(row.count));
+    }
+  }
+
   const countMap = new Map<string, number>();
   for (const row of [...legA, ...legB]) {
     if (row.partnerId) {
@@ -89,7 +96,7 @@ export async function getConnections(userId: string): Promise<Connection[]> {
     .where(inArray(profiles.id, connectedIds));
 
   return connectedProfiles
-    .map((p) => ({ ...p, sharedLetterCount: countMap.get(p.id) ?? 0 }))
+    .map((p) => ({ ...p, sharedLetterCount: legAMap.get(p.id) ?? 0 }))
     .sort((a, b) => a.handle.localeCompare(b.handle));
 }
 

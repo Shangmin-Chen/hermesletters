@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "Hermes' Letters",
     template: "%s · Hermes' Letters",
   },
-  description: "Write something real. Seal it with a secret only they know.",
+  description: "Write something real. Seal it with a link that opens once.",
 };
 
 /**

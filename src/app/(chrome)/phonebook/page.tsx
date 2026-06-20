@@ -62,8 +62,8 @@ export default async function PhonebookPage() {
                       <p className="text-xs text-muted-foreground">
                         {conn.sharedLetterCount}{" "}
                         {conn.sharedLetterCount === 1
-                          ? "shared letter"
-                          : "shared letters"}
+                          ? "kept letter"
+                          : "kept letters"}
                       </p>
                     </div>
                     <Link
