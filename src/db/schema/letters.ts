@@ -42,28 +42,7 @@ export const letters = pgTable(
     /** Full plain-text body of the letter. Never sent to unauthenticated clients. */
     body: text("body").notNull(),
 
-    /** Security question shown on the locked page. */
-    question: text("question").notNull(),
-
-    /**
-     * Lowercased, outer-whitespace-trimmed version of the answer used for
-     * case-insensitive comparison. NEVER sent to the client.
-     */
-    answerNormalized: text("answer_normalized").notNull(),
-
-    /**
-     * Underline mask derived from the trimmed answer:
-     *   – spaces are preserved as-is
-     *   – every non-space character is replaced with a placeholder (e.g. "_")
-     * This encodes character count and space positions so the UI can render one
-     * underline per character with blank gaps for spaces — without revealing the
-     * answer text itself.
-     * Example: "hello world" → "_____ _____"
-     * Population happens in Phase 4 (server action); column is defined here.
-     */
-    answerShape: text("answer_shape").notNull(),
-
-    /** Set atomically when the letter is first correctly answered. */
+    /** Set atomically when the letter is first unsealed. */
     openedAt: timestamp("opened_at", { withTimezone: true }),
 
     /** Short-lived token issued to the opener's browser cookie on first claim. */

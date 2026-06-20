@@ -3,7 +3,7 @@
 /**
  * Re-arms the one-shot reveal: RevealOnce plays its envelope-chrome animation
  * only when `sessionStorage["just-opened:<id>"]` is set (and then clears it).
- * In the real app that flag is set by AnswerInput on unlock; here we set it and
+ * In the real app that flag is set by the unlock handler on unseal; here we set it and
  * reload so the reveal can be QA'd on demand.
  */
 export function DevRevealReplay({ letterId }: { letterId: string }) {

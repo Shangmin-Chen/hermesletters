@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 import { getUser, getProfile } from "@/lib/auth";
+import { zipFilter } from "@/lib/zip-filter";
 import { LockedView, UnsealedView, SealedView } from "./letter-views";
 
 // ---------------------------------------------------------------------------
@@ -51,9 +52,8 @@ export default async function LetterPage({ params }: PageProps) {
   // ── Fetch the letter by URL triple (server-side Drizzle, bypasses RLS) ────
   //
   // SECURITY: We fetch ALL columns here so we can perform the cookie/expiry
-  // check, but we ONLY pass body / answerNormalized / images to the render
-  // tree in the validated grace branch. In all other branches those fields
-  // never reach the client.
+  // check, but we ONLY pass body / images to the render tree in the validated
+  // grace branch. In all other branches those fields never reach the client.
   const [row] = await db
     .select()
     .from(letters)
@@ -107,11 +107,17 @@ export default async function LetterPage({ params }: PageProps) {
         .where(eq(letterImages.letterId, row.id))
         .orderBy(letterImages.position);
 
-      // Mint signed URLs server-side (never expose storage paths to client)
+      // Mint signed URLs server-side (never expose storage paths to client).
+      // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
       const signedUrls = await Promise.all(
         imageRows.map((img) => mintSignedUrl(img.storagePath))
       );
-      const validUrls = signedUrls.filter((u): u is string => u !== null);
+      const rowCaptions = imageRows.map((img) => img.caption ?? null);
+      const { a: validUrls, b: imageCaptions } = zipFilter(
+        signedUrls,
+        rowCaptions,
+        (url): url is string => url !== null
+      );
 
       // Determine auth state for the keep-flow UI (server-side, no body leakage)
       const [graceUser, graceProfile] = await Promise.all([
@@ -125,6 +131,7 @@ export default async function LetterPage({ params }: PageProps) {
         <UnsealedView
           body={row.body}
           imageUrls={validUrls}
+          imageCaptions={imageCaptions}
           letterId={row.id}
           expiresAt={row.expiresAt!}
           isLoggedIn={isLoggedIn}
@@ -138,13 +145,11 @@ export default async function LetterPage({ params }: PageProps) {
     return <SealedView message="This letter has already been opened — it found its person." />;
   }
 
-  // 4. unopened — show the locked page (question + answer_shape only)
+  // 4. unopened — show the wax-unseal gesture
   if (row.status === "unopened") {
     return (
       <LockedView
         letterId={row.id}
-        question={row.question}
-        answerShape={row.answerShape}
         senderHandle={row.senderHandle}
         receiverName={receiver}
       />

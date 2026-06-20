@@ -7,8 +7,7 @@ grace), see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## The core invariant
 
-> **`body`, `answer_normalized`, and `claim_token` never reach an
-> unauthenticated client.**
+> **`body` and `claim_token` never reach an unauthenticated client.**
 
 Everything below exists to uphold that one sentence.
 
@@ -25,8 +24,7 @@ Two data paths, deliberately separated:
 - **Supabase JS client (RLS-enforced)** — auth and RLS-protected client reads.
   Senders can `INSERT` letters scoped to themselves but **never read them back**
   (no sent-history). Saved letters are readable only by `saved_by = auth.uid()`.
-  `letter_images` and `letter_verify_attempts` have RLS on with **no client
-  policy** (default-deny).
+  `letter_images` has RLS on with **no client policy** (default-deny).
 
 ## The single validated branch
 
@@ -37,10 +35,13 @@ place: the cookie-validated grace branch of
 other path (unopened, opened-without-cookie, expired, saved-by-someone-else)
 renders a sealed view that never receives the content.
 
-The three letter views were extracted to
-[`letter-views.tsx`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx) as
-**pure presentational components** — they perform no data access, auth, or cookie
-checks. The gating lives entirely in the `LetterPage` server component. The
+The letter views live in
+[`letter-views.tsx`](../src/app/[handle]/[receiver]/[letter]/letter-views.tsx).
+`UnsealedView` and `SealedView` are pure presentational components — they
+perform no data access, auth, or cookie checks. `LockedView` is an interactive
+client component that owns the unlock POST (see below), but the security-
+sensitive gating (which row, whether `body` is loaded) lives entirely in the
+`LetterPage` server component. The
 reveal animation wrapper
 ([`RevealOnce.tsx`](../src/app/[handle]/[receiver]/[letter]/RevealOnce.tsx))
 receives the already-server-rendered body as React `children`, **never** as a
@@ -49,17 +50,14 @@ does not push `body` into a client payload.
 
 ## Rate limiting
 
-The lock is intentionally guessable, so the verify route
-([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) layers two
-caps:
-
-| Layer | Limit | Scope | Authority |
-|---|---|---|---|
-| In-memory fixed window | 10 / 5 min | `(letterId, IP)` | best-effort, per instance |
-| Durable (`letter_verify_attempts`) | 20 / 10 min | per letter | authoritative, survives spoofed IPs + multi-instance |
-
-Each attempt is recorded **before** the answer check; stale rows are pruned on
-each call and again by the cron job.
+With the security-question challenge removed, the unlock flow has no secret to
+brute-force: the verify route
+([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) authorizes a
+claim solely by possession of the unguessable letter URL (and its `claim_token`),
+and the claim is written under an atomic `saved_by IS NULL` guard that makes
+replay harmless. The former per-attempt rate limit (and the
+`letter_verify_attempts` table that backed it) was therefore retired alongside
+the question challenge.
 
 ## Redirect safety
 
@@ -68,8 +66,8 @@ Every post-auth `next` redirect passes through a single hardened guard
 rejecting `//host`, `/\host`, any backslash, `://`, and control characters — so
 the keep-flow round-trip can't be turned into an open redirect. The guard is
 applied at **every boundary** the path crosses: the login *and* signup
-pages/actions, `/auth/confirm`, and the onboarding page/action. A raw `next` is
-never trusted.
+pages/actions, and the onboarding page/action. A raw `next` is never trusted.
+(Email confirmation is disabled and `/auth/confirm` has been removed.)
 
 ## Other hardening
 
@@ -85,9 +83,10 @@ never trusted.
   `localStorage`; the answer is excluded by construction.
 - **Letter body is rendered as escaped plain text** with `whitespace-pre-wrap`,
   never `dangerouslySetInnerHTML`.
-- **Email-enumeration neutralized:** an already-registered address follows the
-  same "check your email" path as a fresh sign-up (the response stays
-  byte-identical). Sign-out uses a 303 redirect so the POST lands on `/` as a GET.
+- **Email-enumeration neutralized:** sign-up errors (including already-registered
+  addresses) return a single generic "Something went wrong. Please try again."
+  message — no path reveals whether the address is in use. Sign-out uses a 303
+  redirect so the POST lands on `/` as a GET.
 - **Slug collisions** on create are caught via the Postgres unique-violation and
   returned (not thrown) as "that letter name is taken," so the sender's draft
   survives in the mounted form.

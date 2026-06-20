@@ -18,11 +18,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Eye,
-  EyeOff,
   ImagePlus,
-  X,
   LockOpen,
+  X,
 } from "lucide-react";
 import { useLongPress, usePress } from "@react-aria/interactions";
 import { mergeProps } from "@react-aria/utils";
@@ -36,13 +34,14 @@ interface NewLetterFormProps {
 interface ImagePreview {
   file: File;
   objectUrl: string;
+  caption: string;
 }
 
 // Each step lists the required field names to validate before advancing.
 const STEPS = [
   { label: "Write", fields: ["body"] },
   { label: "Photos", fields: [] },
-  { label: "Lock", fields: ["question", "answer"] },
+  { label: "Seal", fields: [] },
   { label: "Send", fields: ["receiver_name", "letter_name"] },
 ] as const;
 
@@ -52,8 +51,6 @@ const LAST_STEP = STEPS.length - 1;
 // so a rejected submit lands the user on the step where they can fix it.
 const FIELD_TO_STEP: Record<FieldKey, number> = {
   body: 0,
-  question: 2,
-  answer: 2,
   receiver: LAST_STEP,
   letter: LAST_STEP,
 };
@@ -421,7 +418,7 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
               type="button"
               aria-label={
                 disabled
-                  ? "Fill in your secret first to seal the letter"
+                  ? "Write your letter first to seal it"
                   : "Press and hold to seal the letter"
               }
               disabled={disabled}
@@ -472,7 +469,7 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
             aria-live="polite"
           >
             {disabled
-              ? "Write your secret first"
+              ? "Write your letter first"
               : progress > 0 && progress < 1
                 ? "Keep holding…"
                 : "Press and hold to seal"}
@@ -493,12 +490,8 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
   const [step, setStep] = useState(0);
   const [receiverName, setReceiverName] = useState("");
   const [letterName, setLetterName] = useState("");
-  const [showAnswer, setShowAnswer] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  // Controlled values for question/answer so the seal can gate on them.
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
   // Whether the letter has been sealed. Separate from step so navigating Back
   // into step 2 remembers the prior seal and shows the re-entry affordance.
   const [isSealed, setIsSealed] = useState(false);
@@ -533,7 +526,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
         );
         const additions = images
           .filter((f) => !existing.has(`${f.name}:${f.size}`))
-          .map((file) => ({ file, objectUrl: URL.createObjectURL(file) }));
+          .map((file) => ({ file, objectUrl: URL.createObjectURL(file), caption: "" }));
         const next = [...prev, ...additions];
         syncInput(next);
         return next;
@@ -569,6 +562,17 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       });
     },
     [syncInput]
+  );
+
+  const updateCaption = useCallback(
+    (index: number, value: string) => {
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], caption: value };
+        return next;
+      });
+    },
+    []
   );
 
   // Run native validation on the current step's required fields before
@@ -609,10 +613,9 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     [validateStep]
   );
 
-  // Called by WaxSeal when the gesture completes — validates and advances,
-  // then moves focus to the receiver-name field on step 4 (Send).
+  // Called by WaxSeal when the gesture completes — advances to the Send step
+  // and moves focus to the receiver-name field.
   const handleSeal = useCallback(() => {
-    if (!validateStep(2)) return;
     setIsSealed(true);
     setStep((s) => {
       const next = Math.min(s + 1, LAST_STEP);
@@ -625,9 +628,9 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
     setTimeout(() => {
       receiverNameRef.current?.focus();
     }, 50);
-  }, [validateStep]);
+  }, []);
 
-  // Breaking the seal lets the user edit question/answer and re-seal.
+  // Breaking the seal lets the user re-seal.
   const handleBreakSeal = useCallback(() => {
     setIsSealed(false);
   }, []);
@@ -643,9 +646,6 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
       setStep(FIELD_TO_STEP[state.field]);
     }
   }
-
-  // The seal is only enabled once both secret fields are filled.
-  const sealEnabled = question.trim().length > 0 && answer.trim().length > 0;
 
   return (
     <form
@@ -791,7 +791,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
             aria-label="Selected images"
           >
             {imagePreviews.map((preview, i) => (
-              <li key={preview.objectUrl} className="relative group">
+              <li key={preview.objectUrl} className="relative group flex flex-col gap-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview.objectUrl}
@@ -806,13 +806,32 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
                 >
                   <X className="size-3" aria-hidden />
                 </button>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground leading-none">
-                  {preview.file.name}
-                </p>
+                <input
+                  type="text"
+                  value={preview.caption}
+                  onChange={(e) => updateCaption(i, e.target.value)}
+                  placeholder="Add a caption (optional)"
+                  maxLength={200}
+                  disabled={isPending}
+                  aria-label={`Caption for ${preview.file.name}`}
+                  className="w-full rounded border border-border bg-transparent px-1.5 py-0.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-60"
+                />
               </li>
             ))}
           </ul>
         )}
+
+        {/* Hidden caption inputs — one per preview, in the same order as the
+            file input, so formData.getAll("caption")[i] aligns with
+            formData.getAll("images")[i] on the server. */}
+        {imagePreviews.map((preview, i) => (
+          <input
+            key={`caption-${i}-${preview.objectUrl}`}
+            type="hidden"
+            name="caption"
+            value={preview.caption}
+          />
+        ))}
       </section>
 
       {/* ── Step 3: Seal the letter ─────────────────────────────────────── */}
@@ -820,7 +839,7 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
           obscure text. The texture is a CSS background on the section itself
           so it scopes cleanly to this step only. */}
       <section
-        aria-label="Lock"
+        aria-label="Seal"
         hidden={step !== 2}
         className="rounded-xl border border-border bg-card p-5 space-y-6 relative overflow-hidden"
         style={{
@@ -842,81 +861,14 @@ export function NewLetterForm({ senderHandle }: NewLetterFormProps) {
               Seal your letter
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Press a secret into the wax — only the recipient will know the
-              answer.
+              Press and hold the wax seal to close your letter.
             </p>
           </div>
 
-          {/* Secret question + answer — stay in DOM with their names so the
-              form submission contract is unchanged. */}
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="question">A question only they can answer</Label>
-              <Input
-                id="question"
-                name="question"
-                placeholder="e.g. What was the name of our dog?"
-                required
-                disabled={isPending}
-                /* Once sealed, lock the field with readOnly — NOT disabled.
-                   Disabled controls are omitted from the form submission, so a
-                   sealed (disabled) question never reached the server and the
-                   action rejected it with "Security question is required." */
-                readOnly={isSealed}
-                aria-readonly={isSealed}
-                className={isSealed ? "bg-muted/50 text-muted-foreground" : ""}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                They&apos;ll need to answer this to unlock the letter.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="answer">The answer</Label>
-              <div className="relative">
-                <Input
-                  id="answer"
-                  name="answer"
-                  type={showAnswer ? "text" : "password"}
-                  placeholder="e.g. Biscuit"
-                  required
-                  disabled={isPending}
-                  /* readOnly (not disabled) once sealed — see the question field
-                     above; a disabled answer would be dropped from the submit. */
-                  readOnly={isSealed}
-                  aria-readonly={isSealed}
-                  autoComplete="off"
-                  className={isSealed ? "pr-10 bg-muted/50 text-muted-foreground" : "pr-10"}
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-r-md"
-                  aria-label={showAnswer ? "Hide answer" : "Show answer"}
-                  onClick={() => setShowAnswer((v) => !v)}
-                  tabIndex={0}
-                >
-                  {showAnswer ? (
-                    <EyeOff className="size-4" aria-hidden />
-                  ) : (
-                    <Eye className="size-4" aria-hidden />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Case-insensitive. They&apos;ll only see its length and spaces —
-                not the answer itself.
-              </p>
-            </div>
-          </div>
-
           {/* Ceremonial wax seal — the visual centrepiece of the step */}
-          <div className="flex flex-col items-center py-4 border-t border-border/60">
+          <div className="flex flex-col items-center py-4">
             <WaxSeal
-              disabled={!sealEnabled || isPending}
+              disabled={isPending}
               sealed={isSealed}
               onSeal={handleSeal}
               onBreakSeal={handleBreakSeal}

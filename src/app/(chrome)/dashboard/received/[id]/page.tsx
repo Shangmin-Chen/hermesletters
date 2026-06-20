@@ -14,6 +14,7 @@ import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
 import { cn } from "@/lib/utils";
+import { zipFilter } from "@/lib/zip-filter";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -39,7 +40,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
   // ── Step 1: load only the fields needed to authorize (defense-in-depth) ───
   //
-  // We intentionally do NOT select body / answer_normalized / claim_token here.
+  // We intentionally do NOT select body / claim_token here.
   // Sensitive content is only fetched AFTER the ownership check passes below.
   const [authRow] = await db
     .select({
@@ -75,7 +76,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
   // ── Step 2: ownership verified — now load body and images for rendering ────
   //
-  // answer_normalized and claim_token are never selected here.
+  // claim_token is never selected here.
   const [contentRow] = await db
     .select({ body: letters.body })
     .from(letters)
@@ -93,10 +94,16 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
     .orderBy(letterImages.position);
 
   // ── Mint signed URLs server-side (never expose storage paths to client) ───
+  // Zip captions to rows BEFORE filtering so a failed URL mint drops its caption.
   const signedUrls = await Promise.all(
     imageRows.map((img) => mintSignedUrl(img.storagePath))
   );
-  const validUrls = signedUrls.filter((u): u is string => u !== null);
+  const rowCaptions = imageRows.map((img) => img.caption ?? null);
+  const { a: validUrls, b: validCaptions } = zipFilter(
+    signedUrls,
+    rowCaptions,
+    (url): url is string => url !== null
+  );
 
   const savedDate = new Date(authRow.savedAt).toLocaleString("en-US", {
     month: "long",
@@ -184,7 +191,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
               className="border-t border-border px-6 py-6 sm:px-10 animate-rise-in"
               style={{ animationDelay: "260ms" }}
             >
-              <PhotoGallery urls={validUrls} />
+              <PhotoGallery urls={validUrls} captions={validCaptions} />
             </div>
           )}
 

@@ -56,12 +56,21 @@ export default async function DashboardPage() {
               Write a private letter or revisit one you&apos;ve kept.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-wrap gap-3">
             <Link
               href="/new"
               className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
             >
               Write a letter
+            </Link>
+            <Link
+              href="/phonebook"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "w-full sm:w-auto"
+              )}
+            >
+              Phonebook
             </Link>
           </CardContent>
         </Card>
