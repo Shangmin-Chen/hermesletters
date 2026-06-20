@@ -1,6 +1,18 @@
-/**
- * Helper to read a slice of a file as ArrayBuffer, compatible with older environments.
- */
+const SMALL_IMAGE_LIMIT_BYTES = 500 * 1024;
+const ANIMATION_SCAN_BYTES = 128 * 1024;
+const APNG_CHUNK = [97, 99, 84, 76] as const; // acTL
+const WEBP_ANIMATION_CHUNK = [65, 78, 73, 77] as const; // ANIM
+const SUPPORTED_CANVAS_OUTPUTS = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+const EXTENSION_BY_MIME: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
 function readSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
   if (typeof slice.arrayBuffer === "function") {
     return slice.arrayBuffer();
@@ -13,50 +25,40 @@ function readSliceAsArrayBuffer(slice: Blob): Promise<ArrayBuffer> {
   });
 }
 
-/**
- * Checks if a file has animation frames by searching for specific chunks.
- * Specifically checks for:
- * - GIF (automatically returns true if file type matches)
- * - APNG (searches for 'acTL' chunk)
- * - Animated WebP (searches for 'ANIM' chunk)
- */
+function includesByteSequence(
+  bytes: Uint8Array,
+  sequence: readonly number[]
+): boolean {
+  for (let i = 0; i <= bytes.length - sequence.length; i++) {
+    let matched = true;
+    for (let j = 0; j < sequence.length; j++) {
+      if (bytes[i + j] !== sequence[j]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return true;
+  }
+
+  return false;
+}
+
 async function isAnimated(file: File): Promise<boolean> {
   if (file.type === "image/gif") {
     return true;
   }
 
   try {
-    // Read the first 128KB of the file
-    const slice = file.slice(0, 128 * 1024);
+    const slice = file.slice(0, ANIMATION_SCAN_BYTES);
     const buffer = await readSliceAsArrayBuffer(slice);
     const arr = new Uint8Array(buffer);
 
     if (file.type === "image/png") {
-      // Look for 'acTL' chunk (Animation Control Chunk)
-      // ASCII values for 'a', 'c', 'T', 'L' are 97, 99, 84, 76
-      for (let i = 0; i <= arr.length - 4; i++) {
-        if (
-          arr[i] === 97 &&     // 'a'
-          arr[i + 1] === 99 && // 'c'
-          arr[i + 2] === 84 && // 'T'
-          arr[i + 3] === 76    // 'L'
-        ) {
-          return true;
-        }
-      }
-    } else if (file.type === "image/webp") {
-      // Look for 'ANIM' chunk
-      // ASCII values for 'A', 'N', 'I', 'M' are 65, 78, 73, 77
-      for (let i = 0; i <= arr.length - 4; i++) {
-        if (
-          arr[i] === 65 &&     // 'A'
-          arr[i + 1] === 78 && // 'N'
-          arr[i + 2] === 73 && // 'I'
-          arr[i + 3] === 77    // 'M'
-        ) {
-          return true;
-        }
-      }
+      return includesByteSequence(arr, APNG_CHUNK);
+    }
+
+    if (file.type === "image/webp") {
+      return includesByteSequence(arr, WEBP_ANIMATION_CHUNK);
     }
   } catch (err) {
     console.error("Failed to check if image is animated:", err);
@@ -66,7 +68,7 @@ async function isAnimated(file: File): Promise<boolean> {
 }
 
 /**
- * Utility to compress and downscale an image file on the client side using HTML5 Canvas.
+ * Compresses and downscales an image file on the client with Canvas.
  * Skips compression for animated files (GIF, APNG, animated WebP) to preserve animations,
  * and files under 500KB to save CPU cycles.
  */
@@ -76,17 +78,14 @@ export async function compressImage(
   maxH = 1200,
   quality = 0.8
 ): Promise<File> {
-  // 1. Skip non-images
   if (!file.type.startsWith("image/")) {
     return file;
   }
 
-  // 2. Skip small files (<= 500KB) - Done early to avoid parsing headers of small files
-  if (file.size <= 500 * 1024) {
+  if (file.size <= SMALL_IMAGE_LIMIT_BYTES) {
     return file;
   }
 
-  // 3. Skip animated files (GIF, APNG, animated WebP)
   const animated = await isAnimated(file);
   if (animated) {
     return file;
@@ -97,7 +96,6 @@ export async function compressImage(
     const img = new Image();
 
     img.onload = () => {
-      // Clear handlers and revoke temporary URL immediately to prevent memory leaks
       img.onload = null;
       img.onerror = null;
       URL.revokeObjectURL(tempUrl);
@@ -106,13 +104,11 @@ export async function compressImage(
         let width = img.width;
         let height = img.height;
 
-        // Handle 0-dimension images
         if (width === 0 || height === 0) {
           resolve(file);
           return;
         }
 
-        // Resize proportionally if dimensions exceed thresholds using minimum scale factor
         const scale = Math.min(maxW / width, maxH / height);
         if (scale < 1) {
           width = Math.round(width * scale);
@@ -125,21 +121,15 @@ export async function compressImage(
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(file); // Fallback to raw file if canvas context is unavailable
+          resolve(file);
           return;
         }
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Maintain original MIME type if possible, fallback to image/jpeg
-        let outputType = file.type;
-        if (
-          outputType !== "image/png" &&
-          outputType !== "image/jpeg" &&
-          outputType !== "image/webp"
-        ) {
-          outputType = "image/jpeg";
-        }
+        const outputType = SUPPORTED_CANVAS_OUTPUTS.has(file.type)
+          ? file.type
+          : "image/jpeg";
 
         canvas.toBlob(
           (blob) => {
@@ -148,15 +138,16 @@ export async function compressImage(
               return;
             }
 
-            // Inspect the actual generated blob type to avoid mismatch if the browser falls back (e.g. WebP not supported)
             const finalType = blob.type || outputType;
+            if (blob.size >= file.size) {
+              resolve(file);
+              return;
+            }
 
-            // Keep the filename prefix, change extension to match MIME type
-            let extension = ".jpg";
-            if (finalType === "image/png") extension = ".png";
-            else if (finalType === "image/webp") extension = ".webp";
-
-            const baseName = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
+            const extension = EXTENSION_BY_MIME[finalType] ?? ".jpg";
+            const extensionIndex = file.name.lastIndexOf(".");
+            const baseName =
+              extensionIndex > 0 ? file.name.slice(0, extensionIndex) : file.name;
             const newName = `${baseName}${extension}`;
 
             const compressedFile = new File([blob], newName, {

@@ -532,17 +532,13 @@ export function NewLetterForm({
   const previewsRef = useRef<ImagePreview[]>(imagePreviews);
   const createdUrlsRef = useRef<Set<string>>(new Set());
 
-  // Keep previewsRef in sync with state
+  // Keep the async add path and hidden file input aligned with rendered state.
   useEffect(() => {
     previewsRef.current = imagePreviews;
-  }, [imagePreviews]);
-
-  // Sync image previews to the file input
-  useEffect(() => {
     syncInput(imagePreviews);
   }, [imagePreviews, syncInput]);
 
-  // Reconcile and revoke discarded or removed object URLs
+  // Revoke URLs that were created but did not survive the final state update.
   useEffect(() => {
     const activeUrls = new Set(imagePreviews.map((p) => p.objectUrl));
     createdUrlsRef.current.forEach((url) => {
@@ -553,7 +549,7 @@ export function NewLetterForm({
     });
   }, [imagePreviews]);
 
-  // Cleanup all created URLs on unmount
+  // Clean up any remaining preview URLs on unmount.
   useEffect(() => {
     const urls = createdUrlsRef.current;
     return () => {
@@ -572,10 +568,15 @@ export function NewLetterForm({
       if (images.length === 0) return;
 
       const compressedImages: File[] = [];
-      // Compress files sequentially to prevent concurrent CPU/memory spikes
+      // Keep this serial so a large multi-select does not spike CPU/memory.
       for (const file of images) {
-        const compressed = await compressImage(file);
-        compressedImages.push(compressed);
+        try {
+          const compressed = await compressImage(file);
+          compressedImages.push(compressed);
+        } catch (err) {
+          console.error("Failed to compress image, using original file:", err);
+          compressedImages.push(file);
+        }
       }
 
       const existing = new Set(
@@ -586,6 +587,7 @@ export function NewLetterForm({
       for (const file of compressedImages) {
         const key = `${file.name}:${file.size}`;
         if (!existing.has(key)) {
+          existing.add(key);
           const url = URL.createObjectURL(file);
           createdUrlsRef.current.add(url);
           additions.push({
@@ -607,9 +609,16 @@ export function NewLetterForm({
         for (const addition of additions) {
           const key = `${addition.file.name}:${addition.file.size}`;
           if (!existingPrev.has(key)) {
+            existingPrev.add(key);
             verified.push(addition);
+          } else {
+            URL.revokeObjectURL(addition.objectUrl);
+            createdUrlsRef.current.delete(addition.objectUrl);
           }
         }
+
+        if (verified.length === 0) return prev;
+
         return [...prev, ...verified];
       });
     },
@@ -639,12 +648,12 @@ export function NewLetterForm({
   }, []);
 
   const updateCaption = useCallback(
-    (index: number, value: string) => {
-      setImagePreviews((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], caption: value };
-        return next;
-      });
+    (url: string, value: string) => {
+      setImagePreviews((prev) =>
+        prev.map((preview) =>
+          preview.objectUrl === url ? { ...preview, caption: value } : preview
+        )
+      );
     },
     []
   );
@@ -864,8 +873,11 @@ export function NewLetterForm({
             className="grid grid-cols-3 gap-2 sm:grid-cols-4"
             aria-label="Selected images"
           >
-            {imagePreviews.map((preview, i) => (
-              <li key={preview.objectUrl} className="relative group flex flex-col gap-1">
+            {imagePreviews.map((preview) => (
+              <li
+                key={preview.objectUrl}
+                className="relative group flex flex-col gap-1"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview.objectUrl}
@@ -883,7 +895,9 @@ export function NewLetterForm({
                 <input
                   type="text"
                   value={preview.caption}
-                  onChange={(e) => updateCaption(i, e.target.value)}
+                  onChange={(e) =>
+                    updateCaption(preview.objectUrl, e.target.value)
+                  }
                   placeholder="Add a caption (optional)"
                   maxLength={200}
                   disabled={isPending}
