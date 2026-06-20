@@ -53,20 +53,22 @@ async function detectImageMime(file: File): Promise<string | null> {
   return null;
 }
 
+// ── ImageEntry type (shared between prepare and upload phases) ───────────────
+type ImageEntry = { file: File; buffer: ArrayBuffer; detectedMime: string };
+
 /**
- * Shared image pipeline for both the invite (createLetterAction) and direct
- * (sendDirectLetterAction) flows. MUST be called AFTER the `letters` row for
- * `letterId` is inserted. Reads `images` + `caption` FormData, validates by magic
- * bytes, uploads to the private bucket, and inserts `letter_images` rows.
+ * Phase 1 of the image pipeline (NO db writes, NO uploads).
  *
- * Returns null on success, or a friendly { error, field } on failure — and on any
- * failure it best-effort cleans up uploaded objects AND deletes the half-created
- * `letters` row so we never leave a partial letter behind.
+ * Reads `images` + `caption` from FormData, zips captions to their files,
+ * filters zero-byte placeholders, then validates each file by magic bytes.
+ *
+ * Returns `{ entries, captions }` on success, or a friendly `{ error, field }`
+ * if any file fails the magic-byte check — so invalid images are rejected
+ * BEFORE any `letters` row is created.
  */
-async function processLetterContent(
-  letterId: string,
+async function prepareLetterImages(
   formData: FormData
-): Promise<CreateLetterState> {
+): Promise<{ entries: ImageEntry[]; captions: string[] } | { error: string; field: FieldKey }> {
   const imageFiles = formData.getAll("images") as File[];
   const rawCaptions = formData.getAll("caption") as string[];
 
@@ -79,39 +81,54 @@ async function processLetterContent(
     (f) => f instanceof File && f.size > 0
   );
 
-  // Best-effort rollback of a half-created letter on any failure.
-  const cleanup = async (uploaded: string[]) => {
-    await Promise.allSettled(
-      uploaded.map((p) => adminClient.storage.from("letters").remove([p]))
-    ).catch((e) => console.error("[processLetterContent] cleanup error:", e));
-    await db
-      .delete(letters)
-      .where(eq(letters.id, letterId))
-      .catch((e) =>
-        console.error("[processLetterContent] cleanup deleting letter:", e)
-      );
-  };
-
   // Read & validate all image bytes/types up front (magic bytes, not file.type).
-  type ImageEntry = { file: File; buffer: ArrayBuffer; detectedMime: string };
-  const imageEntries: ImageEntry[] = [];
+  const entries: ImageEntry[] = [];
   for (const file of validImages) {
     const detectedMime = await detectImageMime(file);
     if (!detectedMime) {
-      await cleanup([]);
       return {
         error: `File "${file.name}" is not an accepted image type. Only PNG, JPEG, GIF, and WEBP are allowed.`,
         field: "body",
       };
     }
     const buffer = await file.arrayBuffer();
-    imageEntries.push({ file, buffer, detectedMime });
+    entries.push({ file, buffer, detectedMime });
   }
+
+  return { entries, captions: validCaptions };
+}
+
+/**
+ * Phase 2 of the image pipeline. MUST be called AFTER the `letters` row for
+ * `letterId` is inserted. Uploads validated image entries to the private bucket
+ * and inserts `letter_images` rows.
+ *
+ * Returns null on success, or a friendly { error, field } on failure — and on any
+ * failure it best-effort cleans up uploaded objects AND deletes the half-created
+ * `letters` row so we never leave a partial letter behind.
+ */
+async function uploadLetterImages(
+  letterId: string,
+  entries: ImageEntry[],
+  captions: string[]
+): Promise<CreateLetterState> {
+  // Best-effort rollback of a half-created letter on any failure.
+  const cleanup = async (uploaded: string[]) => {
+    await Promise.allSettled(
+      uploaded.map((p) => adminClient.storage.from("letters").remove([p]))
+    ).catch((e) => console.error("[uploadLetterImages] cleanup error:", e));
+    await db
+      .delete(letters)
+      .where(eq(letters.id, letterId))
+      .catch((e) =>
+        console.error("[uploadLetterImages] cleanup deleting letter:", e)
+      );
+  };
 
   // Upload images to letters/{letterId}/{i}-{safeName} using the DETECTED mime.
   const uploadedPaths: string[] = [];
-  for (let i = 0; i < imageEntries.length; i++) {
-    const { file, buffer, detectedMime } = imageEntries[i];
+  for (let i = 0; i < entries.length; i++) {
+    const { file, buffer, detectedMime } = entries[i];
     const safeName =
       file.name
         .replace(/[/\\]/g, "")
@@ -142,7 +159,7 @@ async function processLetterContent(
           storagePath,
           position,
           caption:
-            [...(validCaptions[position] ?? "").trim()].slice(0, 200).join("") ||
+            [...(captions[position] ?? "").trim()].slice(0, 200).join("") ||
             null,
         }))
       );
@@ -161,10 +178,11 @@ async function processLetterContent(
 /**
  * Server action: create a new letter.
  *
- * Ordering (important — validation happens BEFORE any insert or upload):
+ * Ordering (important — image validation happens BEFORE any insert or upload):
  *   1. Auth guard — derive sender_id and sender_handle from the verified profile.
- *   2. Validate + slugify inputs; reject empties early.
- *   3. Read & validate all image bytes/types (magic bytes, not file.type).
+ *   2. Validate + slugify text inputs; reject empties early.
+ *   3. Prepare images — validate all image bytes/types by magic bytes (no db
+ *      writes, no uploads). Reject invalid types before touching the DB.
  *   4. INSERT letters row — catch unique-violation (letters_url_unique) and
  *      return a friendly error WITHOUT uploading anything.
  *   5. Upload images (service-role client, private bucket) at {letterId}/{file}.
@@ -216,9 +234,14 @@ export async function createLetterAction(
   const receiverName = slugify(rawReceiverName);
   const letterName = slugify(rawLetterName);
 
-  // ── Step 3: Insert the letters row ────────────────────────────────────────
+  // ── Step 3: Prepare images (validate magic bytes — NO db writes, NO uploads)
+  // Invalid image types are rejected here, BEFORE the letters row is created.
+  const prepared = await prepareLetterImages(formData);
+  if ("error" in prepared) return prepared;
+
+  // ── Step 4: Insert the letters row ────────────────────────────────────────
   // Catch Postgres unique-violation (code 23505, constraint letters_url_unique)
-  // and return a friendly error before processing images.
+  // and return a friendly error before uploading anything.
   const letterId = crypto.randomUUID();
 
   try {
@@ -252,11 +275,11 @@ export async function createLetterAction(
     throw err;
   }
 
-  // ── Step 4: Images (validate → upload → insert; cleans up on failure) ─────
-  const imageError = await processLetterContent(letterId, formData);
-  if (imageError) return imageError;
+  // ── Step 5: Upload images + insert letter_images rows (cleans up on failure)
+  const imgErr = await uploadLetterImages(letterId, prepared.entries, prepared.captions);
+  if (imgErr) return imgErr;
 
-  // ── Step 5: Redirect to confirmation page ─────────────────────────────────
+  // ── Step 6: Redirect to confirmation page ─────────────────────────────────
   const params = new URLSearchParams({
     handle: senderHandle,
     receiver: receiverName,
@@ -271,18 +294,26 @@ export async function createLetterAction(
  * Differs from createLetterAction: the recipient is an existing user (resolved
  * from the hidden `to` handle), the send is gated by `areConnected`, and the
  * letter is permanent — receiver_id is set and claim_token/expires_at are NULL.
- * Shares the body/image pipeline (processLetterContent).
+ *
+ * Ordering (image validation happens BEFORE any insert or upload):
+ *   1. Auth guard.
+ *   2. Validate text inputs.
+ *   3. Resolve recipient + self-send guard + connection check.
+ *   4. Prepare images (validate magic bytes — NO db writes, NO uploads).
+ *   5. INSERT letters row (with 23505 handling).
+ *   6. Upload images + insert letter_images rows (best-effort cleanup on failure).
+ *   7. Redirect to /new/sent.
  */
 export async function sendDirectLetterAction(
   _prevState: CreateLetterState,
   formData: FormData
 ): Promise<CreateLetterState> {
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Step 1: Auth ───────────────────────────────────────────────────────────
   const profile = await requireProfile();
   const senderId: string = profile.id as string;
   const senderHandle: string = profile.handle as string;
 
-  // ── Validate inputs ─────────────────────────────────────────────────────────
+  // ── Step 2: Validate inputs ────────────────────────────────────────────────
   const to = ((formData.get("to") as string | null) ?? "").trim();
   const rawLetterName = (formData.get("letter_name") as string | null) ?? "";
   const rawBody = (formData.get("body") as string | null) ?? "";
@@ -299,17 +330,28 @@ export async function sendDirectLetterAction(
   }
   if (!bodyOk(rawBody)) return { error: "Letter body is required.", field: "body" };
 
-  // ── Resolve recipient + authorize (connections only) ───────────────────────
+  // ── Step 3: Resolve recipient + self-send guard + connection check ─────────
   // The client `to` handle is never trusted: re-resolve it and re-check the
-  // connection server-side. A self-send is blocked because you are never your
-  // own connection.
+  // connection server-side.
   const [recipient] = await db
     .select({ id: profiles.id, handle: profiles.handle })
     .from(profiles)
     .where(eq(profiles.handle, to))
     .limit(1);
 
-  if (!recipient || !(await areConnected(senderId, recipient.id))) {
+  if (!recipient) {
+    return {
+      error: "You can only send a letter to someone you're connected with.",
+      field: "receiver",
+    };
+  }
+
+  // Explicit self-send guard (independent of the connection check).
+  if (recipient.id === senderId) {
+    return { error: "You can't send a letter to yourself.", field: "receiver" };
+  }
+
+  if (!(await areConnected(senderId, recipient.id))) {
     return {
       error: "You can only send a letter to someone you're connected with.",
       field: "receiver",
@@ -317,9 +359,14 @@ export async function sendDirectLetterAction(
   }
 
   const letterName = slugify(rawLetterName);
-  const letterId = crypto.randomUUID();
 
-  // ── Insert the direct letter (receiver_id set; no claim/expires) ───────────
+  // ── Step 4: Prepare images (validate magic bytes — NO db writes, NO uploads)
+  // Invalid image types are rejected here, BEFORE the letters row is created.
+  const prepared = await prepareLetterImages(formData);
+  if ("error" in prepared) return prepared;
+
+  // ── Step 5: Insert the direct letter (receiver_id set; no claim/expires) ───
+  const letterId = crypto.randomUUID();
   try {
     await db.insert(letters).values({
       id: letterId,
@@ -349,9 +396,9 @@ export async function sendDirectLetterAction(
     throw err;
   }
 
-  // ── Images (shared pipeline) ───────────────────────────────────────────────
-  const imageError = await processLetterContent(letterId, formData);
-  if (imageError) return imageError;
+  // ── Step 6: Upload images + insert letter_images rows (cleans up on failure)
+  const imgErr = await uploadLetterImages(letterId, prepared.entries, prepared.captions);
+  if (imgErr) return imgErr;
 
   redirect("/new/sent");
 }

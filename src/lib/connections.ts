@@ -29,38 +29,41 @@ export type Connection = {
 
 /** Full connection list for `userId`, sorted by handle. Used by the phonebook page. */
 export async function getConnections(userId: string): Promise<Connection[]> {
-  // Leg A: senders whose letters I kept, with count.
-  const legA = await db
-    .select({
-      partnerId: letters.senderId,
-      count: sql<number>`COUNT(*)`.as("count"),
-    })
-    .from(letters)
-    .where(
-      and(
-        eq(letters.savedBy, userId),
-        isNotNull(letters.savedAt),
-        ne(letters.senderId, userId)
+  // Run Leg A and Leg B concurrently — independent queries, no ordering dependency.
+  const [legA, legB] = await Promise.all([
+    // Leg A: senders whose letters I kept, with count.
+    db
+      .select({
+        partnerId: letters.senderId,
+        count: sql<number>`COUNT(*)`.as("count"),
+      })
+      .from(letters)
+      .where(
+        and(
+          eq(letters.savedBy, userId),
+          isNotNull(letters.savedAt),
+          ne(letters.senderId, userId)
+        )
       )
-    )
-    .groupBy(letters.senderId);
+      .groupBy(letters.senderId),
 
-  // Leg B: recipients who kept letters I sent, with count.
-  const legB = await db
-    .select({
-      partnerId: letters.savedBy,
-      count: sql<number>`COUNT(*)`.as("count"),
-    })
-    .from(letters)
-    .where(
-      and(
-        eq(letters.senderId, userId),
-        isNotNull(letters.savedBy),
-        isNotNull(letters.savedAt),
-        ne(letters.savedBy, userId)
+    // Leg B: recipients who kept letters I sent, with count.
+    db
+      .select({
+        partnerId: letters.savedBy,
+        count: sql<number>`COUNT(*)`.as("count"),
+      })
+      .from(letters)
+      .where(
+        and(
+          eq(letters.senderId, userId),
+          isNotNull(letters.savedBy),
+          isNotNull(letters.savedAt),
+          ne(letters.savedBy, userId)
+        )
       )
-    )
-    .groupBy(letters.savedBy);
+      .groupBy(letters.savedBy),
+  ]);
 
   // Union and de-duplicate, accumulating letter counts per partner.
   const countMap = new Map<string, number>();
@@ -104,17 +107,19 @@ export async function areConnected(
     .from(letters)
     .where(
       or(
-        // Leg A: a letter I kept that otherId sent me.
+        // Leg A: a letter I kept that otherId sent me (self-edge guard: sender != me).
         and(
           eq(letters.savedBy, userId),
           isNotNull(letters.savedAt),
-          eq(letters.senderId, otherId)
+          eq(letters.senderId, otherId),
+          ne(letters.senderId, userId)
         ),
-        // Leg B: a letter I sent that otherId kept.
+        // Leg B: a letter I sent that otherId kept (self-edge guard: saver != me).
         and(
           eq(letters.senderId, userId),
           eq(letters.savedBy, otherId),
-          isNotNull(letters.savedAt)
+          isNotNull(letters.savedAt),
+          ne(letters.savedBy, userId)
         )
       )
     )

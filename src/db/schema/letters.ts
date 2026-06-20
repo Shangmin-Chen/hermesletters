@@ -96,6 +96,8 @@ export const letters = pgTable(
      */
     unique("letters_url_unique").on(t.senderHandle, t.receiverName, t.letterName),
     index("letters_saved_by_idx").on(t.savedBy),
+    /** Phonebook Leg B + sender-side queries. */
+    index("letters_sender_id_idx").on(t.senderId),
     /** Inbox query: a recipient's direct letters by status. */
     index("letters_receiver_id_status_idx").on(t.receiverId, t.status),
   ]
