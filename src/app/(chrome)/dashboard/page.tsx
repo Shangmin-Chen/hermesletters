@@ -3,7 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { hasUnseenConnections } from "@/lib/connections";
 import { db } from "@/db";
 import { letters } from "@/db/schema";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
+import { eq, and, isNotNull, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
@@ -55,7 +55,12 @@ export default async function DashboardPage() {
         createdAt: letters.createdAt,
       })
       .from(letters)
-      .where(eq(letters.receiverId, profile.id))
+      .where(
+        and(
+          eq(letters.receiverId, profile.id),
+          inArray(letters.status, ["unopened", "opened", "expired"])
+        )
+      )
       .orderBy(desc(letters.createdAt)),
 
     // New-connection red dot (cleared when the user visits the phonebook).
@@ -135,6 +140,7 @@ export default async function DashboardPage() {
               <ul className="divide-y">
                 {inbox.map((mail) => {
                   const unopened = mail.status === "unopened";
+                  const expired = mail.status === "expired";
                   return (
                     <li key={mail.id}>
                       <Link
@@ -150,14 +156,19 @@ export default async function DashboardPage() {
                           aria-hidden
                         />
                         <div className="min-w-0">
-                          <p className="font-medium">
-                            {mail.letterName}
-                            {unopened && (
-                              <span className="ml-2 align-middle text-xs font-normal text-wax">
-                                · sealed
-                              </span>
-                            )}
-                          </p>
+                        <p className="font-medium">
+                          {mail.letterName}
+                          {unopened && (
+                            <span className="ml-2 align-middle text-xs font-normal text-wax">
+                              · sealed
+                            </span>
+                          )}
+                          {expired && (
+                            <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">
+                              · expired
+                            </span>
+                          )}
+                        </p>
                           <p className="truncate text-sm text-muted-foreground">
                             From @{mail.senderHandle}
                           </p>

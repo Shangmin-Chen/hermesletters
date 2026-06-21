@@ -50,7 +50,7 @@ export default async function NewLetterPage({
         </h1>
         <p className="text-sm text-muted-foreground">
           {directRecipient
-            ? "Compose your letter and seal it — it lands straight in their inbox, and stays there for good."
+            ? "Compose your letter and seal it — it lands straight in their inbox, ready to open and keep."
             : "Compose your letter, seal it with a shared secret, and send a link that opens once."}
         </p>
       </div>
