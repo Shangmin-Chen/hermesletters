@@ -514,6 +514,7 @@ export function NewLetterForm({
   const [letterName, setLetterName] = useState("");
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [directSecretEnabled, setDirectSecretEnabled] = useState(false);
   // Whether the letter has been sealed. Separate from step so navigating Back
   // into step 2 remembers the prior seal and shows the re-entry affordance.
   const [isSealed, setIsSealed] = useState(false);
@@ -676,7 +677,7 @@ export function NewLetterForm({
     const form = formRef.current;
     if (!form) return true;
     const stepFields =
-      s === LAST_STEP && !isDirect
+      s === LAST_STEP && (!isDirect || directSecretEnabled)
         ? [...STEPS[s].fields, "secret_prompt", "secret_answer"]
         : [...STEPS[s].fields];
     for (const name of stepFields) {
@@ -690,7 +691,7 @@ export function NewLetterForm({
       }
     }
     return true;
-  }, [isDirect]);
+  }, [directSecretEnabled, isDirect]);
 
   const goNext = useCallback(() => {
     if (validateStep(step)) setStep((s) => Math.min(s + 1, LAST_STEP));
@@ -1005,7 +1006,7 @@ export function NewLetterForm({
             </div>
             <input type="hidden" name="to" value={directRecipient!.handle} />
             <p className="text-xs text-muted-foreground">
-              This letter lands straight in their inbox — no link to share.
+              This letter lands sealed in their inbox — no link to share.
             </p>
           </div>
         ) : (
@@ -1055,7 +1056,41 @@ export function NewLetterForm({
           </div>
         )}
 
-        {!isDirect && (
+        {isDirect && (
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+            <div>
+              <h3 className="font-serif text-base font-semibold text-ink">
+                Choose how the seal opens
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                It can open from their inbox, or you can add a shared secret
+                for a more personal seal.
+              </p>
+            </div>
+
+            <label className="flex items-start gap-3 rounded-md border border-border bg-background/60 px-3 py-3 text-sm">
+              <input
+                type="checkbox"
+                name="direct_secret_enabled"
+                value="on"
+                checked={directSecretEnabled}
+                onChange={(event) => setDirectSecretEnabled(event.target.checked)}
+                disabled={isPending}
+                className="mt-1"
+              />
+              <span>
+                <span className="block font-medium text-foreground">
+                  Add a shared secret
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Make them answer a private prompt before the seal opens.
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
+
+        {(!isDirect || directSecretEnabled) && (
           <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
             <div>
               <h3 className="font-serif text-base font-semibold text-ink">

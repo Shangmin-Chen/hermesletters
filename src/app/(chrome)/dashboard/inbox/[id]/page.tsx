@@ -3,7 +3,7 @@ import "server-only";
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { LayoutDashboard } from "lucide-react";
 import { db } from "@/db";
@@ -13,6 +13,9 @@ import { mintLetterImageSignedUrls } from "@/lib/supabase/signed-urls";
 import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
+import { LocalDateTime } from "@/components/LocalDateTime";
+import { Countdown } from "@/app/[handle]/[receiver]/[letter]/Countdown";
+import { KeepButton } from "@/app/[handle]/[receiver]/[letter]/KeepButton";
 import { zipFilter } from "@/lib/zip-filter";
 import { cn } from "@/lib/utils";
 import { InboxLockedView } from "./InboxLockedView";
@@ -33,6 +36,10 @@ export default async function InboxLetterPage({ params }: PageProps) {
       status: letters.status,
       senderHandle: letters.senderHandle,
       letterName: letters.letterName,
+      savedBy: letters.savedBy,
+      expiresAt: letters.expiresAt,
+      secretPrompt: letters.secretPrompt,
+      secretAnswerShape: letters.secretAnswerShape,
     })
     .from(letters)
     .where(eq(letters.id, id))
@@ -41,10 +48,30 @@ export default async function InboxLetterPage({ params }: PageProps) {
   // Ownership gate: must be a direct letter addressed to the current user.
   if (!authRow || authRow.receiverId !== profile.id) notFound();
 
+  if (authRow.status === "saved" && authRow.savedBy === profile.id) {
+    redirect(`/dashboard/received/${authRow.id}`);
+  }
+
+  const now = new Date();
+  const expiredByTime =
+    authRow.status === "opened" &&
+    authRow.expiresAt !== null &&
+    authRow.savedBy === null &&
+    now >= authRow.expiresAt;
+
+  if (authRow.status === "expired" || expiredByTime) {
+    return <ExpiredInboxLetter senderHandle={authRow.senderHandle} />;
+  }
+
   // ── Sealed: show the wax-unseal ceremony ──────────────────────────────────
   if (authRow.status === "unopened") {
     return (
-      <InboxLockedView letterId={authRow.id} senderHandle={authRow.senderHandle} />
+      <InboxLockedView
+        letterId={authRow.id}
+        senderHandle={authRow.senderHandle}
+        secretPrompt={authRow.secretPrompt}
+        answerShape={authRow.secretAnswerShape}
+      />
     );
   }
 
@@ -126,9 +153,26 @@ export default async function InboxLetterPage({ params }: PageProps) {
           )}
 
           <footer className="border-t border-border bg-muted/50 px-6 py-4 text-center">
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              A letter from @{authRow.senderHandle} — yours to keep, always.
-            </p>
+            {authRow.expiresAt ? (
+              <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  This letter is open until{" "}
+                  <strong className="text-foreground">
+                    <LocalDateTime date={authRow.expiresAt} />
+                  </strong>{" "}
+                  (<Countdown expiresAt={authRow.expiresAt} />). Keep it, and it
+                  stays with you for good.
+                </p>
+                <KeepButton
+                  letterId={authRow.id}
+                  letterPath={`/dashboard/inbox/${authRow.id}`}
+                />
+              </div>
+            ) : (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                A letter from @{authRow.senderHandle}.
+              </p>
+            )}
             <Link
               href="/dashboard"
               className={cn(
@@ -141,6 +185,35 @@ export default async function InboxLetterPage({ params }: PageProps) {
             </Link>
           </footer>
         </article>
+      </div>
+    </main>
+  );
+}
+
+function ExpiredInboxLetter({ senderHandle }: { senderHandle: string }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="flex w-full max-w-md flex-col items-center gap-4 text-center animate-rise-in">
+        <Envelope
+          state="sealed"
+          className="h-20 w-20 text-muted-foreground drop-shadow-[0_6px_18px_oklch(0_0_0/0.14)]"
+          aria-hidden
+        />
+        <div>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
+            This letter slipped away.
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The letter from @{senderHandle} was opened but not kept in time.
+          </p>
+        </div>
+        <Link
+          href="/dashboard"
+          className={cn(buttonVariants({ variant: "outline" }), "mt-2")}
+        >
+          <LayoutDashboard className="size-4" aria-hidden="true" />
+          Back to dashboard
+        </Link>
       </div>
     </main>
   );

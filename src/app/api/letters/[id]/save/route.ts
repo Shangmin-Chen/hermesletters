@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNotNull, isNull, gt, sql } from "drizzle-orm";
+import { eq, and, isNotNull, isNull, gt, sql, or } from "drizzle-orm";
 import { db } from "@/db";
 import { letters } from "@/db/schema";
 import { getUser, getProfile } from "@/lib/auth";
@@ -42,9 +42,9 @@ export async function POST(
     .find((c) => c.startsWith(`${cookieName}=`))
     ?.slice(cookieName.length + 1) ?? null;
 
-  if (!cookieValue) {
-    return NextResponse.json({ status: "forbidden" }, { status: 403 });
-  }
+  const ownershipGate = cookieValue
+    ? or(eq(letters.claimToken, cookieValue), eq(letters.receiverId, profile.id))
+    : eq(letters.receiverId, profile.id);
 
   // ── 4. Atomic conditional UPDATE ─────────────────────────────────────────
   //
@@ -70,7 +70,7 @@ export async function POST(
         eq(letters.id, letterId),
         eq(letters.status, "opened"),
         isNotNull(letters.openedAt),
-        eq(letters.claimToken, cookieValue),
+        ownershipGate,
         gt(letters.expiresAt, sql`now()`),
         isNull(letters.savedBy)
       )

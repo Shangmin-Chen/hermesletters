@@ -19,7 +19,7 @@ export default async function LetterSentPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             It&apos;s waiting sealed in their inbox. They&apos;ll break the seal
-            to read it — and it stays with them for good.
+            to read it, then keep it within 24 hours if they want it to stay.
           </p>
         </div>
         <div className="flex flex-col justify-center gap-3 sm:flex-row">

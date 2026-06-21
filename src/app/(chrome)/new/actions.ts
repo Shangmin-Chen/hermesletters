@@ -344,6 +344,9 @@ export async function sendDirectLetterAction(
   const to = ((formData.get("to") as string | null) ?? "").trim();
   const rawLetterName = (formData.get("letter_name") as string | null) ?? "";
   const rawBody = (formData.get("body") as string | null) ?? "";
+  const secretEnabled = formData.get("direct_secret_enabled") === "on";
+  const rawSecretPrompt = (formData.get("secret_prompt") as string | null) ?? "";
+  const rawSecretAnswer = (formData.get("secret_answer") as string | null) ?? "";
 
   if (!to) return { error: "Choose someone to write to.", field: "receiver" };
   if (!slugFieldOk(rawLetterName)) {
@@ -356,6 +359,12 @@ export async function sendDirectLetterAction(
       : { error: "Letter name is required.", field: "letter" };
   }
   if (!bodyOk(rawBody)) return { error: "Letter body is required.", field: "body" };
+  if (secretEnabled && !secretPromptOk(rawSecretPrompt)) {
+    return { error: "Private prompt is required.", field: "secret" };
+  }
+  if (secretEnabled && !secretAnswerOk(rawSecretAnswer)) {
+    return { error: "Shared secret answer is required.", field: "secret" };
+  }
 
   // ── Step 3: Resolve recipient + self-send guard + connection check ─────────
   // The client `to` handle is never trusted: re-resolve it and re-check the
@@ -386,6 +395,9 @@ export async function sendDirectLetterAction(
   }
 
   const letterName = slugify(rawLetterName);
+  const directSecret = secretEnabled
+    ? createSecretAnswer(rawSecretAnswer)
+    : null;
 
   // ── Step 4: Prepare images (validate magic bytes — NO db writes, NO uploads)
   // Invalid image types are rejected here, BEFORE the letters row is created.
@@ -405,6 +417,10 @@ export async function sendDirectLetterAction(
       receiverName: recipient.handle,
       letterName,
       body: rawBody.trim(),
+      secretPrompt: secretEnabled ? rawSecretPrompt.trim() : null,
+      secretAnswerHash: directSecret?.answerHash ?? null,
+      secretAnswerSalt: directSecret?.answerSalt ?? null,
+      secretAnswerShape: directSecret?.answerShape ?? null,
       status: "unopened",
     });
   } catch (err: unknown) {
