@@ -11,3 +11,9 @@ export type { Letter, NewLetter } from "./letters";
 
 export { letterImages } from "./letter-images";
 export type { LetterImage, NewLetterImage } from "./letter-images";
+
+export { letterVerifyAttempts } from "./letter-verify-attempts";
+export type {
+  LetterVerifyAttempt,
+  NewLetterVerifyAttempt,
+} from "./letter-verify-attempts";

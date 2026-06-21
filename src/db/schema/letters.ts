@@ -54,6 +54,35 @@ export const letters = pgTable(
     /** Full plain-text body of the letter. Never sent to unauthenticated clients. */
     body: text("body").notNull(),
 
+    /**
+     * Hash of the invite URL's random open token. Set for invite letters only;
+     * direct letters are addressed by receiver_id and do not need a bearer URL
+     * token.
+     */
+    openTokenHash: text("open_token_hash"),
+
+    /**
+     * Optional shared-secret prompt shown before a letter opens. Required for
+     * invite letters; sender-selectable for direct letters.
+     */
+    secretPrompt: text("secret_prompt"),
+
+    /**
+     * HMAC hash of the normalized shared-secret answer. The answer itself is
+     * never stored. Null when a direct letter is sent without a prompt.
+     */
+    secretAnswerHash: text("secret_answer_hash"),
+
+    /** Per-letter salt used when hashing the shared-secret answer. */
+    secretAnswerSalt: text("secret_answer_salt"),
+
+    /**
+     * Underline mask derived from the trimmed answer. Spaces are preserved and
+     * non-space characters become underscores, so the UI can show answer shape
+     * without exposing the answer.
+     */
+    secretAnswerShape: text("secret_answer_shape"),
+
     /** Set atomically when the letter is first unsealed. */
     openedAt: timestamp("opened_at", { withTimezone: true }),
 
