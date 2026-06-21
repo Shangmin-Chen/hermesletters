@@ -17,7 +17,7 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
@@ -79,25 +79,51 @@ export function LockedView({
   letterId,
   senderHandle,
   receiverName,
+  secretPrompt,
+  answerShape,
+  openToken,
 }: {
   letterId: string;
   senderHandle: string;
   receiverName: string;
+  secretPrompt: string;
+  answerShape: string;
+  openToken: string;
 }) {
   // receiverName is a slug ("maya-lin"); title-case it for the greeting.
   const receiverDisplay = titleCaseName(receiverName);
 
   const [isPending, startTransition] = useTransition();
+  const [guess, setGuess] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const totalChars = answerShape.replace(/ /g, "").length;
+
   function handleUnseal() {
+    if (!guess.trim()) {
+      setErrorMsg("Answer the private prompt first.");
+      inputRef.current?.focus();
+      return;
+    }
+
+    setErrorMsg(null);
+
     startTransition(async () => {
       try {
         const res = await fetch(`/api/letters/${letterId}/verify`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: openToken, guess }),
         });
+
+        if (res.status === 429) {
+          setResetKey((k) => k + 1);
+          setErrorMsg("Too many attempts. Please wait a moment and try again.");
+          return;
+        }
 
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { status?: string };
@@ -108,6 +134,16 @@ export function LockedView({
           }
           if (data.status === "already_opened") {
             setErrorMsg("Someone has already opened this one.");
+            return;
+          }
+          if (data.status === "incorrect") {
+            setGuess("");
+            inputRef.current?.focus();
+            setErrorMsg("Not quite — try again.");
+            return;
+          }
+          if (data.status === "invalid_link") {
+            setErrorMsg("This letter needs its original sealed link.");
             return;
           }
           setErrorMsg("Something went wrong. Please try again.");
@@ -139,6 +175,14 @@ export function LockedView({
           return;
         }
 
+        if (data.status === "incorrect") {
+          setResetKey((k) => k + 1);
+          setGuess("");
+          inputRef.current?.focus();
+          setErrorMsg("Not quite — try again.");
+          return;
+        }
+
         setErrorMsg("Something went wrong. Please try again.");
       } catch {
         setResetKey((k) => k + 1);
@@ -164,6 +208,67 @@ export function LockedView({
             <span className="font-mono text-foreground/80">@{senderHandle}</span>
           </p>
         </div>
+
+        {/* Private prompt — the answer travels with the wax-unseal gesture */}
+        <form
+          className="mb-7 w-full rounded-2xl border border-border/60 bg-card/70 px-5 py-5 text-left shadow-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleUnseal();
+          }}
+        >
+          <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
+            Shared secret
+          </p>
+          <p className="mt-2 font-serif text-lg leading-snug text-foreground">
+            {secretPrompt}
+          </p>
+
+          {answerShape && (
+            <div
+              aria-hidden="true"
+              className="mt-4 flex flex-wrap gap-x-3 gap-y-1 select-none"
+            >
+              {answerShape.split(" ").map((word, wordIndex) => (
+                <span key={wordIndex} className="flex gap-px">
+                  {word.split("").map((ch, charIndex) =>
+                    ch === "_" ? (
+                      <span
+                        key={charIndex}
+                        className="inline-block w-4 border-b-2 border-current opacity-60"
+                      />
+                    ) : null
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <label
+            htmlFor={`answer-${letterId}`}
+            className="mt-4 block text-sm font-medium text-foreground"
+          >
+            Your answer
+          </label>
+          <input
+            ref={inputRef}
+            id={`answer-${letterId}`}
+            value={guess}
+            onChange={(event) => {
+              setGuess(event.target.value);
+              if (errorMsg) setErrorMsg(null);
+            }}
+            disabled={isPending}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={
+              totalChars > 0
+                ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
+                : "Answer"
+            }
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          />
+        </form>
 
         {/* Wax-unseal gesture — the recipient presses and holds to open */}
         <WaxUnseal onUnseal={handleUnseal} disabled={isPending} resetKey={resetKey} />

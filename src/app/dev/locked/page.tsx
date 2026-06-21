@@ -12,6 +12,9 @@ export default function DevLocked() {
         letterId="dev-locked"
         senderHandle="demo"
         receiverName="eleanor"
+        secretPrompt="What did we call the blue house?"
+        answerShape="_________"
+        openToken="dev-open-token"
       />
     </>
   );

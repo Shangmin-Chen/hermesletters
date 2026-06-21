@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, lt, count } from "drizzle-orm";
 import { db } from "@/db";
-import { letters } from "@/db/schema";
+import { letters, letterVerifyAttempts } from "@/db/schema";
+import { hashOpenToken, verifySecretAnswer } from "@/lib/letter-security";
 
 // ---------------------------------------------------------------------------
 // POST /api/letters/[id]/verify
 //
-// New contract: no answer required. A POST to this endpoint looks up the
-// letter and — if it is still unopened — atomically claims it: sets openedAt,
-// issues a claim_token, and drops the `claim:{letterId}` httpOnly cookie.
+// Invite-letter contract: the request must carry both the random open token
+// from the sealed link and the recipient's answer to the shared-secret prompt.
+// If both pass and the letter is still unopened, this route atomically claims it:
+// sets openedAt, issues a claim_token, and drops the `claim:{letterId}` cookie.
 // The CLAIM-COOKIE CONTRACT is preserved exactly:
 //   - cookie name:  `claim:{letterId}`
 //   - cookie value: letters.claim_token  (a fresh UUID)
 //   - httpOnly, Secure (only over HTTPS), SameSite=Lax, path=/, maxAge=24h
 // ---------------------------------------------------------------------------
+
+const DURABLE_WINDOW_MS = 10 * 60 * 1000;
+const DURABLE_MAX_ATTEMPTS = 20;
 
 export async function POST(
   request: NextRequest,
@@ -21,7 +26,21 @@ export async function POST(
 ) {
   const { id: letterId } = await params;
 
-  // ── 1. Load the letter (server-side Drizzle, bypasses RLS) ────────────────
+  // ── 1. Parse token + answer from request body ────────────────────────────
+  let token: string;
+  let guess: string;
+  try {
+    const body = (await request.json()) as { token?: unknown; guess?: unknown };
+    if (typeof body.token !== "string" || typeof body.guess !== "string") {
+      return NextResponse.json({ status: "error" }, { status: 400 });
+    }
+    token = body.token;
+    guess = body.guess;
+  } catch {
+    return NextResponse.json({ status: "error" }, { status: 400 });
+  }
+
+  // ── 2. Load the letter (server-side Drizzle, bypasses RLS) ────────────────
   //
   // SECURITY: We select ONLY the fields needed for this route.
   // The body, imageUrls, and other sensitive fields are never selected here —
@@ -33,6 +52,9 @@ export async function POST(
       openedAt: letters.openedAt,
       expiresAt: letters.expiresAt,
       savedBy: letters.savedBy,
+      openTokenHash: letters.openTokenHash,
+      secretAnswerHash: letters.secretAnswerHash,
+      secretAnswerSalt: letters.secretAnswerSalt,
     })
     .from(letters)
     .where(eq(letters.id, letterId))
@@ -44,7 +66,7 @@ export async function POST(
 
   const now = new Date();
 
-  // ── 2. Read-time expiry guard ──────────────────────────────────────────────
+  // ── 3. Read-time expiry guard ──────────────────────────────────────────────
   const isExpiredByTime =
     row.expiresAt !== null && row.savedBy === null && now >= row.expiresAt;
 
@@ -57,7 +79,41 @@ export async function POST(
     return NextResponse.json({ status: "already_opened" });
   }
 
-  // ── 3. ATOMIC CLAIM ───────────────────────────────────────────────────────
+  // ── 4. Open-token guard ───────────────────────────────────────────────────
+  //
+  // Human-readable slugs are presentation. The random token is the bearer
+  // secret proving this is the original sealed link.
+  if (!row.openTokenHash || hashOpenToken(token) !== row.openTokenHash) {
+    return NextResponse.json({ status: "invalid_link" }, { status: 404 });
+  }
+
+  // ── 5. Durable per-letter answer-attempt cap ─────────────────────────────
+  const windowStart = new Date(now.getTime() - DURABLE_WINDOW_MS);
+  await db
+    .delete(letterVerifyAttempts)
+    .where(
+      and(
+        eq(letterVerifyAttempts.letterId, letterId),
+        lt(letterVerifyAttempts.createdAt, windowStart)
+      )
+    );
+
+  const [{ attemptCount }] = await db
+    .select({ attemptCount: count() })
+    .from(letterVerifyAttempts)
+    .where(eq(letterVerifyAttempts.letterId, letterId));
+
+  if (attemptCount >= DURABLE_MAX_ATTEMPTS) {
+    return NextResponse.json({ status: "rate_limited" }, { status: 429 });
+  }
+
+  await db.insert(letterVerifyAttempts).values({ letterId });
+
+  if (!verifySecretAnswer(guess, row.secretAnswerSalt, row.secretAnswerHash)) {
+    return NextResponse.json({ status: "incorrect" });
+  }
+
+  // ── 6. ATOMIC CLAIM ───────────────────────────────────────────────────────
   //
   // Single conditional UPDATE with opened_at IS NULL guard.
   // Only the first request gets a row back. A concurrent second request
@@ -82,7 +138,7 @@ export async function POST(
     return NextResponse.json({ status: "already_opened" });
   }
 
-  // ── 4. Set httpOnly claim cookie ──────────────────────────────────────────
+  // ── 7. Set httpOnly claim cookie ──────────────────────────────────────────
   //
   // Cookie attributes (SPEC requirement):
   //   - httpOnly: JS in the browser cannot read it (XSS mitigation)

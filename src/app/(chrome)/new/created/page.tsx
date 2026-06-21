@@ -4,16 +4,21 @@ import { requireProfile } from "@/lib/auth";
 import { CreatedPageClient } from "./created-page-client";
 
 interface CreatedPageProps {
-  searchParams: Promise<{ handle?: string; receiver?: string; letter?: string }>;
+  searchParams: Promise<{
+    handle?: string;
+    receiver?: string;
+    letter?: string;
+    token?: string;
+  }>;
 }
 
 export default async function LetterCreatedPage({ searchParams }: CreatedPageProps) {
   await requireProfile();
 
   const params = await searchParams;
-  const { handle, receiver, letter } = params;
+  const { handle, receiver, letter, token } = params;
 
-  if (!handle || !receiver || !letter) {
+  if (!handle || !receiver || !letter || !token) {
     redirect("/new");
   }
 
@@ -37,7 +42,7 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
     }
   }
 
-  const fullUrl = `${origin}${letterPath}`;
+  const fullUrl = `${origin}${letterPath}?t=${encodeURIComponent(token)}`;
 
   return <CreatedPageClient fullUrl={fullUrl} />;
 }

@@ -4,9 +4,16 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireProfile } from "@/lib/auth";
 import { slugify } from "@/lib/slugify";
-import { bodyOk, slugFieldOk, type FieldKey } from "@/lib/letter-validation";
+import {
+  bodyOk,
+  secretAnswerOk,
+  secretPromptOk,
+  slugFieldOk,
+  type FieldKey,
+} from "@/lib/letter-validation";
 import { zipFilter } from "@/lib/zip-filter";
 import { areConnected } from "@/lib/connections";
+import { createOpenToken, createSecretAnswer } from "@/lib/letter-security";
 import { db } from "@/db";
 import { letters, letterImages, profiles } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
@@ -207,6 +214,8 @@ export async function createLetterAction(
   const rawReceiverName = (formData.get("receiver_name") as string | null) ?? "";
   const rawLetterName = (formData.get("letter_name") as string | null) ?? "";
   const rawBody = (formData.get("body") as string | null) ?? "";
+  const rawSecretPrompt = (formData.get("secret_prompt") as string | null) ?? "";
+  const rawSecretAnswer = (formData.get("secret_answer") as string | null) ?? "";
 
   // Shared predicates (letter-validation.ts) keep these checks in lockstep with
   // the client step-gates. Each early return is tagged with its owning field so
@@ -230,9 +239,21 @@ export async function createLetterAction(
       : { error: "Letter name is required.", field: "letter" };
   }
   if (!bodyOk(rawBody)) return { error: "Letter body is required.", field: "body" };
+  if (!secretPromptOk(rawSecretPrompt)) {
+    return { error: "Private prompt is required.", field: "secret" };
+  }
+  if (!secretAnswerOk(rawSecretAnswer)) {
+    return { error: "Shared secret answer is required.", field: "secret" };
+  }
 
   const receiverName = slugify(rawReceiverName);
   const letterName = slugify(rawLetterName);
+  const { token: openToken, tokenHash: openTokenHash } = createOpenToken();
+  const {
+    answerHash: secretAnswerHash,
+    answerSalt: secretAnswerSalt,
+    answerShape: secretAnswerShape,
+  } = createSecretAnswer(rawSecretAnswer);
 
   // ── Step 3: Prepare images (validate magic bytes — NO db writes, NO uploads)
   // Invalid image types are rejected here, BEFORE the letters row is created.
@@ -252,6 +273,11 @@ export async function createLetterAction(
       receiverName,
       letterName,
       body: rawBody.trim(),
+      openTokenHash,
+      secretPrompt: rawSecretPrompt.trim(),
+      secretAnswerHash,
+      secretAnswerSalt,
+      secretAnswerShape,
       status: "unopened",
     });
   } catch (err: unknown) {
@@ -284,6 +310,7 @@ export async function createLetterAction(
     handle: senderHandle,
     receiver: receiverName,
     letter: letterName,
+    token: openToken,
   });
   redirect(`/new/created?${params.toString()}`);
 }
