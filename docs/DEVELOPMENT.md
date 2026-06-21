@@ -75,17 +75,16 @@ compose ritual and letter views hard to exercise in isolation.
 | Route | Renders |
 |---|---|
 | `/dev` | index of the harness routes |
-| `/dev/compose` | the full compose ritual (drive the fold here) |
+| `/dev/compose` | the full compose ritual |
 | `/dev/locked` | the locked sealed-envelope view |
 | `/dev/unsealing` | the wax-unseal press-and-hold interaction, with a replay control |
 | `/dev/unsealed` | the reveal + letter-on-paper, with a "Replay reveal" button |
 | `/dev/sealed` | the already-opened / closed view |
 
 > Note on automated QA: a headless/hidden browser freezes the document timeline
-> and throttles `requestAnimationFrame`, so the fold's live *playback* can only be
-> eyeballed in a visible browser — though its structure can be verified by seeking
-> the Web Animations API. The harness still unblocks all static/layout QA without
-> auth.
+> and throttles `requestAnimationFrame`, so the seal/reveal playback is best
+> eyeballed in a visible browser. The harness still unblocks all static/layout QA
+> without auth.
 
 ## Conventions
 

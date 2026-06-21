@@ -6,26 +6,11 @@ import { eq, and } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { isSafeLocalPath } from "@/lib/safe-path";
+import { parseLetterPath } from "@/lib/letter-path";
 import { db } from "@/db";
 import { letters } from "@/db/schema";
 
 type ActionState = { error?: string } | null;
-
-/**
- * Parse a letter URL path of the form `/{handle}/{receiver}/{letterName}` into
- * its three components. Returns null if the path doesn't match the expected
- * three-segment structure.
- */
-function parseLetterPath(
-  path: string
-): { handle: string; receiver: string; letterName: string } | null {
-  // Path must be /handle/receiver/letterName — exactly 3 non-empty segments.
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length !== 3) return null;
-  const [handle, receiver, letterName] = parts;
-  if (!handle || !receiver || !letterName) return null;
-  return { handle, receiver, letterName };
-}
 
 export async function signUpAction(
   _prevState: ActionState,

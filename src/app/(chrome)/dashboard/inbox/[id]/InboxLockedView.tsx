@@ -8,7 +8,8 @@ import { openDirectLetterAction } from "../actions";
 /**
  * Recipient-side unseal for a DIRECT letter. Reuses the wax-unseal ceremony, but
  * the open is an authenticated server action (no claim cookie). On success the
- * server flips status → 'opened' and we refresh to render the content.
+ * server flips status → 'opened', starts the grace window, and we refresh to
+ * render the content.
  */
 export function InboxLockedView({
   letterId,

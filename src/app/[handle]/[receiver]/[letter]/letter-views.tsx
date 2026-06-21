@@ -404,7 +404,7 @@ export function UnsealedView({
                   <p className="text-sm text-muted-foreground">
                     You need a handle before you can keep letters.{" "}
                     <Link
-                      href="/onboarding"
+                      href={`/onboarding?next=${encodeURIComponent(letterPath)}`}
                       className="underline font-medium text-foreground hover:text-wax transition-colors"
                     >
                       Finish setting up

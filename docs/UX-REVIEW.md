@@ -5,11 +5,9 @@ design-focused audience. Issues are ordered by likely impact on the user
 experience, not by how hard they are to fix. Each item states the problem, why
 it matters, and a specific fix.
 
-> Scope note: this reviews the code as it actually ships today (post "Simplify
-> UI" commit). `docs/PRODUCT.md` still describes an elaborate write→fold→address→seal
-> ritual with `PaperScene`/`EnvelopeScene`/`SealScene`/`FoldClone` components that
-> no longer exist in `src/app/new/`. The doc/product drift is itself a problem
-> (see #2 and #11).
+> Scope note: this is a historical UX audit. Some findings have since been
+> addressed; the current product/security contract lives in `PRODUCT.md`,
+> `ARCHITECTURE.md`, and `SECURITY.md`.
 
 ---
 
@@ -99,12 +97,12 @@ clear two-block layout ("Your letter" / "Lock & address it") recovers most of
 the intent cheaply.
 
 ### 6. ~~Calling the lock a "Security question" with a password "Answer" field misframes the feature~~ — RESOLVED
-**Resolved by removing the knowledge factor entirely.** The security-question
-challenge (the "Security question" label and the masked answer field that read as
-a credential) no longer exists. The lock is now **possession-only**: the recipient
-presses and holds a **wax seal** to open the letter — the ceremony the framing was
-always reaching for. See the wax-unseal flow in
-[ARCHITECTURE.md](./ARCHITECTURE.md#1-the-lock--wax-seal-gesture).
+**Resolved by reframing the knowledge factor.** The old "Security question" /
+"Answer" labels are gone. Invite letters now use an intimate private prompt plus
+a shared-secret answer, while the wax-seal gesture remains the opening ceremony.
+The random open token handles link collision/guessing risk; the prompt handles
+recipient intimacy. See the lock flow in
+[ARCHITECTURE.md](./ARCHITECTURE.md#1-the-lock--shared-secret--wax-seal-gesture).
 
 ### 7. Image upload has no preview, list, size guidance, or progress
 **Problem.** The images input is a bare `<input type="file" multiple>`. No
@@ -132,16 +130,9 @@ friction at a one-time decision point.
 **Fix.** Debounced availability check against reserved/taken handles with an
 inline "available / taken" indicator before submit.
 
-### 9. Landing page doesn't explain the one thing that makes this special
-**Problem.** The hero says "Write a private letter. Lock it behind a secret only
-they know." It never conveys the core mechanic — *opens once, then it's gone* —
-that defines the product.
-**Why it's a problem.** The open-once / burn-on-open tension is the entire
-reason this exists; omitting it makes the app read as a generic "password-protected
-note" and undersells the emotional hook to first-time visitors.
-**Fix.** Add one line of supporting copy (e.g. "It opens once — for the one
-person it was meant for, then it's gone.") and consider a 3-beat "write → seal →
-it opens once" explanation.
+### 9. ~~Landing page doesn't explain the one thing that makes this special~~ — RESOLVED
+**Resolved.** The hero now says the letter opens once for the person it was meant
+for, then it is gone, so the core mechanic is visible before signup or compose.
 
 ### 10. Plain link navigations have no pending/loading feedback
 **Problem.** Form submits get pending states ("Logging in…", "Sending…"), but
