@@ -20,6 +20,12 @@ import { slugify } from "@/lib/slugify";
 import type { FieldKey } from "@/lib/letter-validation";
 import { compressImage } from "@/lib/image-compression";
 import {
+  MAX_IMAGE_BYTES,
+  MAX_LETTER_IMAGES,
+  MAX_TOTAL_IMAGE_BYTES,
+  formatMegabytes,
+} from "@/lib/image-policy";
+import {
   ArrowLeft,
   ArrowRight,
   Check,
@@ -64,6 +70,7 @@ const LAST_STEP = STEPS.length - 1;
 // so a rejected submit lands the user on the step where they can fix it.
 const FIELD_TO_STEP: Record<FieldKey, number> = {
   body: 0,
+  images: 1,
   receiver: LAST_STEP,
   letter: LAST_STEP,
   secret: LAST_STEP,
@@ -513,6 +520,7 @@ export function NewLetterForm({
   const [receiverName, setReceiverName] = useState("");
   const [letterName, setLetterName] = useState("");
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [directSecretEnabled, setDirectSecretEnabled] = useState(false);
   // Whether the letter has been sealed. Separate from step so navigating Back
@@ -594,9 +602,27 @@ export function NewLetterForm({
 
       if (candidates.length === 0) return;
 
+      const remainingSlots = MAX_LETTER_IMAGES - previewsRef.current.length;
+      if (remainingSlots <= 0) {
+        setImageError(`You can attach up to ${MAX_LETTER_IMAGES} images.`);
+        return;
+      }
+
+      let filesToProcess = candidates;
+      if (candidates.length > remainingSlots) {
+        filesToProcess = candidates.slice(0, remainingSlots);
+        setImageError(`Only ${MAX_LETTER_IMAGES} images can be attached.`);
+      } else {
+        setImageError(null);
+      }
+
       const additions: ImagePreview[] = [];
+      let totalBytes = previewsRef.current.reduce(
+        (sum, preview) => sum + preview.file.size,
+        0
+      );
       // Keep this serial so a large multi-select does not spike CPU/memory.
-      for (const { file, sourceKey } of candidates) {
+      for (const { file, sourceKey } of filesToProcess) {
         let previewFile = file;
         try {
           previewFile = await compressImage(file);
@@ -604,8 +630,23 @@ export function NewLetterForm({
           console.error("Failed to compress image, using original file:", err);
         }
 
+        if (previewFile.size > MAX_IMAGE_BYTES) {
+          setImageError(
+            `"${file.name}" is still larger than ${formatMegabytes(MAX_IMAGE_BYTES)} MB after compression.`
+          );
+          continue;
+        }
+
+        if (totalBytes + previewFile.size > MAX_TOTAL_IMAGE_BYTES) {
+          setImageError(
+            `Images must be ${formatMegabytes(MAX_TOTAL_IMAGE_BYTES)} MB total or less after compression.`
+          );
+          break;
+        }
+
         const url = URL.createObjectURL(previewFile);
         createdUrlsRef.current.add(url);
+        totalBytes += previewFile.size;
         additions.push({
           file: previewFile,
           objectUrl: url,
@@ -657,6 +698,7 @@ export function NewLetterForm({
   const removeImage = useCallback((url: string) => {
     URL.revokeObjectURL(url);
     createdUrlsRef.current.delete(url);
+    setImageError(null);
     setImagePreviews((prev) => prev.filter((p) => p.objectUrl !== url));
   }, []);
 
@@ -843,8 +885,10 @@ export function NewLetterForm({
             Add photos
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            PNG, JPEG, GIF, or WEBP · max 5 MB each. Optional — images appear
-            below the letter once unlocked.
+            Up to {MAX_LETTER_IMAGES} images. Large images may be compressed
+            before sending. Each image must be {formatMegabytes(MAX_IMAGE_BYTES)} MB
+            or less after compression, {formatMegabytes(MAX_TOTAL_IMAGE_BYTES)} MB
+            total.
           </p>
         </div>
 
@@ -883,6 +927,12 @@ export function NewLetterForm({
           onChange={handleFileChange}
           className="sr-only"
         />
+
+        {imageError && (
+          <p role="alert" className="text-sm text-destructive">
+            {imageError}
+          </p>
+        )}
 
         {/* Thumbnail previews */}
         {imagePreviews.length > 0 && (

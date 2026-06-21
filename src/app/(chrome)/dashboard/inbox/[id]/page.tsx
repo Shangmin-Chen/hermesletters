@@ -75,7 +75,7 @@ export default async function InboxLetterPage({ params }: PageProps) {
     );
   }
 
-  // ── Opened: load body + images and render the permanent letter ────────────
+  // ── Opened: load body + images and render the grace-window letter ─────────
   const [contentRow] = await db
     .select({ body: letters.body })
     .from(letters)

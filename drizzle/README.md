@@ -10,6 +10,10 @@ paste each file into the Supabase SQL editor in the numbered order below.
 | 2 | `0001_rls_storage.sql` | hand-authored (custom, journal-tracked) | Adds `profiles → auth.users` FK (references Supabase-owned schema, not modelable by drizzle-kit); enables RLS on all three app tables; installs RLS policies (see below); creates the private `letters` storage bucket. |
 | 3 | `0002_shocking_mantis.sql` | drizzle-kit | Creates `letter_verify_attempts` table (id uuid PK, letter_id uuid FK→letters cascade, created_at timestamptz); adds `letter_verify_attempts_letter_id_created_at_idx` composite index on `(letter_id, created_at)` for efficient windowed counts. |
 | 4 | `0003_verify_attempts_rls.sql` | hand-authored (custom, journal-tracked) | Enables RLS on `letter_verify_attempts` with **no permissive client policy** (default-deny). All access is exclusively server-side via Drizzle using the service role (bypasses RLS). Purpose: durable per-letter verify rate limiting — the server uses this table to cap total guess attempts per letter within a rolling window, regardless of spoofed IPs or multiple server instances. Consistent with the `letter_images` RLS pattern. |
+| 5 | `0004_clever_talos.sql` | drizzle-kit | Removes the original answer columns and verify-attempt table, and adds `letter_images.caption`. |
+| 6 | `0005_wandering_gunslinger.sql` | drizzle-kit + hand-edited RLS | Adds direct letters (`letters.receiver_id`), the phonebook seen cursor, and the received-by-me RLS policy. |
+| 7 | `0006_famous_prism.sql` | drizzle-kit | Adds `letters_sender_id_idx` for sender-side phonebook queries. |
+| 8 | `0007_noisy_red_ghost.sql` | drizzle-kit + hand-edited RLS | Adds tokenized invite links and shared-secret prompt fields (`open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`), recreates `letter_verify_attempts`, and enables RLS on the attempts table. |
 
 ## RLS policy summary
 
@@ -21,7 +25,7 @@ paste each file into the Supabase SQL editor in the numbered order below.
 - **SELECT**: allowed when `saved_by = auth.uid()` (Received-mail view only).
 - No sender read-back — a sent letter is fire-and-forget.
 - No client UPDATE or DELETE policy is granted.
-- Locked-page / verify / grace reads go through the **service role** (Drizzle, server-only) which bypasses RLS — so `body`, `answer_normalized`, and `claim_token` are never accessible to unauthenticated clients through RLS.
+- Locked-page / verify / grace reads go through the **service role** (Drizzle, server-only) which bypasses RLS — so `body`, `claim_token`, `open_token_hash`, and shared-secret answer hashes are never accessible to unauthenticated clients through RLS.
 
 ### letter_images
 - RLS enabled with **no permissive client policy** — clients cannot read this table.
@@ -30,15 +34,15 @@ paste each file into the Supabase SQL editor in the numbered order below.
 ## Storage
 
 - Bucket `letters` is **private** (`public = false`).
-- **Path convention (Phase 4):** objects are stored as `"{letter_id}/{filename}"` — pathed under the owning letter (SPEC §"Letter content").
+- **Path convention:** objects are stored as `"{letter_id}/{filename}"` — pathed under the owning letter (SPEC §"Letter content").
 - Access is exclusively server-side: the service role uploads objects; the server mints time-limited signed URLs for reads.
 - **No `storage.objects` RLS policies are created.** The service role bypasses RLS, and attempting `ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY` on hosted Supabase fails ("must be owner"). Client-direct access to the bucket is not needed or desired.
 
-## Scheduled expiry job (Phase 7)
+## Scheduled expiry job
 
 ### What it does
 
-`GET /api/cron/expire` (also accepts POST) is a secured route handler that runs on a schedule — hourly by default, configured via `vercel.json`.
+`GET /api/cron/expire` (also accepts POST) is a secured route handler configured via `vercel.json`.
 
 **It performs two operations:**
 
@@ -101,6 +105,6 @@ With pg_cron you do not need the `/api/cron/expire` HTTP endpoint at all — bot
 
 ---
 
-## saved_by lifecycle note (Phase 6)
+## saved_by lifecycle note
 
-The `saved_by` column uses `ON DELETE SET NULL`.  If a receiver's profile is deleted, the letters row is left with `status = 'saved'` AND `saved_by = NULL`.  **Phase 6 read logic must treat that orphaned state as inaccessible** — never rely on `status` alone to gate access; always check that `saved_by` is non-NULL and matches the current user.
+The `saved_by` column uses `ON DELETE SET NULL`.  If a receiver's profile is deleted, the letters row is left with `status = 'saved'` AND `saved_by = NULL`.  Read logic must treat that orphaned state as inaccessible — never rely on `status` alone to gate access; always check that `saved_by` is non-NULL and matches the current user.

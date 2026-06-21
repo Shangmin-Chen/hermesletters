@@ -22,7 +22,9 @@ export function SignupForm({ next }: { next?: string | null }) {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="font-serif">Create an account</CardTitle>
-        <CardDescription>Sign up to start sending letters.</CardDescription>
+        <CardDescription>
+          Create your account to keep this letter.
+        </CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
@@ -62,7 +64,10 @@ export function SignupForm({ next }: { next?: string | null }) {
           </Button>
           <p className="text-sm text-muted-foreground text-center">
             Already have an account?{" "}
-            <Link href="/login" className="underline underline-offset-4">
+            <Link
+              href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+              className="underline underline-offset-4"
+            >
               Log in
             </Link>
           </p>

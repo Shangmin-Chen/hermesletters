@@ -14,6 +14,12 @@ import {
 import { zipFilter } from "@/lib/zip-filter";
 import { areConnected } from "@/lib/connections";
 import { createOpenToken, createSecretAnswer } from "@/lib/letter-security";
+import {
+  MAX_IMAGE_BYTES,
+  MAX_LETTER_IMAGES,
+  MAX_TOTAL_IMAGE_BYTES,
+  formatMegabytes,
+} from "@/lib/image-policy";
 import { db } from "@/db";
 import { letters, letterImages, profiles } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
@@ -88,6 +94,31 @@ async function prepareLetterImages(
     (f) => f instanceof File && f.size > 0
   );
 
+  if (validImages.length > MAX_LETTER_IMAGES) {
+    return {
+      error: `You can attach up to ${MAX_LETTER_IMAGES} images.`,
+      field: "images",
+    };
+  }
+
+  let totalBytes = 0;
+  for (const file of validImages) {
+    totalBytes += file.size;
+    if (file.size > MAX_IMAGE_BYTES) {
+      return {
+        error: `"${file.name}" is still larger than ${formatMegabytes(MAX_IMAGE_BYTES)} MB after compression.`,
+        field: "images",
+      };
+    }
+  }
+
+  if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+    return {
+      error: `Images must be ${formatMegabytes(MAX_TOTAL_IMAGE_BYTES)} MB total or less after compression.`,
+      field: "images",
+    };
+  }
+
   // Read & validate all image bytes/types up front (magic bytes, not file.type).
   const entries: ImageEntry[] = [];
   for (const file of validImages) {
@@ -95,7 +126,7 @@ async function prepareLetterImages(
     if (!detectedMime) {
       return {
         error: `File "${file.name}" is not an accepted image type. Only PNG, JPEG, GIF, and WEBP are allowed.`,
-        field: "body",
+        field: "images",
       };
     }
     const buffer = await file.arrayBuffer();
@@ -151,7 +182,7 @@ async function uploadLetterImages(
       await cleanup(uploadedPaths);
       return {
         error: "Something went wrong saving your letter. Please try again.",
-        field: "body",
+        field: "images",
       };
     }
     uploadedPaths.push(storagePath);
@@ -174,7 +205,7 @@ async function uploadLetterImages(
       await cleanup(uploadedPaths);
       return {
         error: "Something went wrong saving your letter. Please try again.",
-        field: "body",
+        field: "images",
       };
     }
   }
@@ -320,7 +351,7 @@ export async function createLetterAction(
  *
  * Differs from createLetterAction: the recipient is an existing user (resolved
  * from the hidden `to` handle), the send is gated by `areConnected`, and the
- * letter is permanent — receiver_id is set and claim_token/expires_at are NULL.
+ * letter is opened by receiver identity instead of an invite URL token.
  *
  * Ordering (image validation happens BEFORE any insert or upload):
  *   1. Auth guard.
@@ -404,7 +435,7 @@ export async function sendDirectLetterAction(
   const prepared = await prepareLetterImages(formData);
   if ("error" in prepared) return prepared;
 
-  // ── Step 5: Insert the direct letter (receiver_id set; no claim/expires) ───
+  // ── Step 5: Insert the direct letter (receiver_id set) ─────────────────────
   const letterId = crypto.randomUUID();
   try {
     await db.insert(letters).values({

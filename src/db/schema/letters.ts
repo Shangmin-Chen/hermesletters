@@ -40,9 +40,9 @@ export const letters = pgTable(
      * FK → profiles.id of the recipient, set ONLY for direct letters sent to an
      * existing phonebook connection. NULL for invite letters (whose recipient is
      * not yet a user). A letter is "direct" iff receiver_id IS NOT NULL: direct
-     * letters skip claim_token/expires_at/saved_by and live permanently in the
-     * recipient's inbox. Cascade-delete: a deleted recipient removes their
-     * recipient-owned direct letters.
+     * letters are opened by receiver identity instead of an invite URL token.
+     * Cascade-delete: a deleted recipient removes their recipient-owned direct
+     * letters.
      */
     receiverId: uuid("receiver_id").references(() => profiles.id, {
       onDelete: "cascade",

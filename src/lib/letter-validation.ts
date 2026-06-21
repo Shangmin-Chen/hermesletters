@@ -13,7 +13,7 @@ import { answerOk, promptOk } from "@/lib/letter-secrets";
 
 /** Discriminator used by the server action's return type to route an error
  *  back to the form field that owns the offending value. */
-export type FieldKey = "receiver" | "letter" | "body" | "secret";
+export type FieldKey = "receiver" | "letter" | "body" | "images" | "secret";
 
 /**
  * A letter body is acceptable when it has at least one non-whitespace char.

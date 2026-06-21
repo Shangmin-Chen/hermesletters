@@ -33,16 +33,16 @@ export default async function PhonebookPage() {
               </span>
             </div>
             <CardDescription>
-              People you&apos;ve exchanged kept letters with — write any of them a
-              letter that lands straight in their inbox.
+              People connected through kept letters — write any of them a
+              letter that lands sealed in their inbox.
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             {connections.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No connections yet — they appear once you&apos;ve exchanged a kept
-                letter. Once you&apos;re connected, you can write each other
+                No connections yet — they appear once a kept letter connects
+                you with someone. Once you&apos;re connected, you can write each other
                 directly.
               </p>
             ) : (
@@ -60,10 +60,7 @@ export default async function PhonebookPage() {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {conn.sharedLetterCount}{" "}
-                        {conn.sharedLetterCount === 1
-                          ? "kept letter"
-                          : "kept letters"}
+                        Connected through a kept letter
                       </p>
                     </div>
                     <Link
