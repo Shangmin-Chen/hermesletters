@@ -66,6 +66,7 @@ const FIELD_TO_STEP: Record<FieldKey, number> = {
   body: 0,
   receiver: LAST_STEP,
   letter: LAST_STEP,
+  secret: LAST_STEP,
 };
 
 function imageDedupeKey(file: File) {
@@ -674,7 +675,11 @@ export function NewLetterForm({
   const validateStep = useCallback((s: number) => {
     const form = formRef.current;
     if (!form) return true;
-    for (const name of STEPS[s].fields) {
+    const stepFields =
+      s === LAST_STEP && !isDirect
+        ? [...STEPS[s].fields, "secret_prompt", "secret_answer"]
+        : [...STEPS[s].fields];
+    for (const name of stepFields) {
       const el = form.elements.namedItem(name) as
         | HTMLInputElement
         | HTMLTextAreaElement
@@ -685,7 +690,7 @@ export function NewLetterForm({
       }
     }
     return true;
-  }, []);
+  }, [isDirect]);
 
   const goNext = useCallback(() => {
     if (validateStep(step)) setStep((s) => Math.min(s + 1, LAST_STEP));
@@ -1047,6 +1052,47 @@ export function NewLetterForm({
               /{senderHandle}/{receiverSlug || "<receiver>"}/
               {letterSlug || "<letter>"}
             </p>
+          </div>
+        )}
+
+        {!isDirect && (
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+            <div>
+              <h3 className="font-serif text-base font-semibold text-ink">
+                Shared secret
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Ask something only this person would recognize. They will answer
+                it before the seal opens.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="secret_prompt">Private prompt</Label>
+              <Input
+                id="secret_prompt"
+                name="secret_prompt"
+                placeholder="e.g. What did we call the blue house?"
+                required
+                disabled={isPending}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="secret_answer">Answer</Label>
+              <Input
+                id="secret_answer"
+                name="secret_answer"
+                type="password"
+                placeholder="e.g. moonhouse"
+                required
+                disabled={isPending}
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Case-insensitive. Hermes stores a protected hash, not the answer.
+              </p>
+            </div>
           </div>
         )}
       </section>

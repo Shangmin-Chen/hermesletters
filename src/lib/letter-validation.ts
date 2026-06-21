@@ -9,10 +9,11 @@
  * the server (Node) and in the browser. `slugify` is already isomorphic.
  */
 import { slugify } from "@/lib/slugify";
+import { answerOk, promptOk } from "@/lib/letter-secrets";
 
 /** Discriminator used by the server action's return type to route an error
  *  back to the form field that owns the offending value. */
-export type FieldKey = "receiver" | "letter" | "body";
+export type FieldKey = "receiver" | "letter" | "body" | "secret";
 
 /**
  * A letter body is acceptable when it has at least one non-whitespace char.
@@ -32,4 +33,12 @@ export function bodyOk(s: string): boolean {
  */
 export function slugFieldOk(s: string): boolean {
   return slugify(s).length > 0;
+}
+
+export function secretPromptOk(s: string): boolean {
+  return promptOk(s);
+}
+
+export function secretAnswerOk(s: string): boolean {
+  return answerOk(s);
 }

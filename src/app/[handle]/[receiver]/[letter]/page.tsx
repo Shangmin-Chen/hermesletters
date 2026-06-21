@@ -9,6 +9,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { letters, letterImages } from "@/db/schema";
 import { getUserAndProfile } from "@/lib/auth";
+import { hashOpenToken } from "@/lib/letter-security";
 import { mintLetterImageSignedUrls } from "@/lib/supabase/signed-urls";
 import { zipFilter } from "@/lib/zip-filter";
 import { LockedView, UnsealedView, SealedView } from "./letter-views";
@@ -23,14 +24,16 @@ interface PageProps {
     receiver: string;
     letter: string;
   }>;
+  searchParams: Promise<{ t?: string }>;
 }
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
-export default async function LetterPage({ params }: PageProps) {
+export default async function LetterPage({ params, searchParams }: PageProps) {
   const { handle, receiver, letter: letterParam } = await params;
+  const { t: openToken } = await searchParams;
   const letterPath = `/${handle}/${receiver}/${letterParam}`;
 
   // ── Fetch the letter by URL triple (server-side Drizzle, bypasses RLS) ────
@@ -129,11 +132,24 @@ export default async function LetterPage({ params }: PageProps) {
 
   // 4. unopened — show the wax-unseal gesture
   if (row.status === "unopened") {
+    const tokenMatches =
+      typeof openToken === "string" &&
+      openToken.length > 0 &&
+      row.openTokenHash !== null &&
+      hashOpenToken(openToken) === row.openTokenHash;
+
+    if (!tokenMatches) {
+      return <SealedView message="This letter needs its original sealed link to open." />;
+    }
+
     return (
       <LockedView
         letterId={row.id}
         senderHandle={row.senderHandle}
         receiverName={receiver}
+        secretPrompt={row.secretPrompt ?? ""}
+        answerShape={row.secretAnswerShape ?? ""}
+        openToken={openToken}
       />
     );
   }
