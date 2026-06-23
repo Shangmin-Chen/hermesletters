@@ -671,6 +671,9 @@ export function NewLetterForm({
     if (!form) return true;
     // The shared secret lives on the Seal step (step 2); validate it there when
     // required (invite letters always, direct letters only when opted in).
+    // NOTE: this branch is a defensive fallback — step 2 has no "Next" button.
+    // The wax-seal gesture (gated by `secretReady`) is the real gate; the
+    // validateStep path here is effectively unreachable in normal flow.
     const stepFields =
       s === 2 && (!isDirect || directSecretEnabled)
         ? [...STEPS[s].fields, "secret_prompt", "secret_answer"]
@@ -969,8 +972,9 @@ export function NewLetterForm({
               Seal your letter
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Set the shared secret that opens it, then press and hold the wax
-              seal to close your letter.
+              {secretRequired
+                ? "Set the shared secret that opens it, then press and hold the wax seal to close your letter."
+                : "Press and hold the wax seal to close your letter."}
             </p>
           </div>
 
@@ -993,7 +997,12 @@ export function NewLetterForm({
                   name="direct_secret_enabled"
                   value="on"
                   checked={directSecretEnabled}
-                  onChange={(event) => setDirectSecretEnabled(event.target.checked)}
+                  onChange={(event) => {
+                    setDirectSecretEnabled(event.target.checked);
+                    // Changing how the seal opens after sealing forces a re-seal,
+                    // so a user can't seal with a secret then remove it and advance.
+                    setIsSealed(false);
+                  }}
                   disabled={isPending}
                   className="mt-1"
                 />
@@ -1061,7 +1070,11 @@ export function NewLetterForm({
             <WaxSeal
               disabled={isPending || !secretReady}
               disabledHint={
-                !secretReady ? "Add your shared secret to seal" : undefined
+                !secretReady
+                  ? "Add your shared secret to seal"
+                  : isPending
+                    ? "Sealing your letter…"
+                    : undefined
               }
               sealed={isSealed}
               onSeal={handleSeal}

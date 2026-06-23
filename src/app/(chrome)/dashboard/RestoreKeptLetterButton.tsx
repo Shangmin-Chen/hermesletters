@@ -11,6 +11,8 @@ interface RestoreKeptLetterButtonProps {
   letterId: string;
   /** Compact icon-only trigger for dense list rows. */
   compact?: boolean;
+  /** When provided in compact mode, gives the icon button a distinct accessible name. */
+  letterName?: string;
 }
 
 /**
@@ -20,6 +22,7 @@ interface RestoreKeptLetterButtonProps {
 export function RestoreKeptLetterButton({
   letterId,
   compact = false,
+  letterName,
 }: RestoreKeptLetterButtonProps) {
   const [error, setError] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -28,29 +31,61 @@ export function RestoreKeptLetterButton({
   function handleRestore() {
     setError(false);
     startTransition(async () => {
-      const res = await restoreKeptLetterAction(letterId);
-      if (res.status === "restored") {
-        router.refresh();
-        return;
+      try {
+        const res = await restoreKeptLetterAction(letterId);
+        if (res.status === "restored") {
+          router.refresh();
+          return;
+        }
+        setError(true);
+      } catch {
+        setError(true);
       }
-      setError(true);
     });
   }
 
+  if (compact) {
+    const restoreLabel = letterName
+      ? `Restore "${letterName}"`
+      : "Restore letter";
+    return (
+      <>
+        <button
+          type="button"
+          onClick={handleRestore}
+          disabled={isPending}
+          aria-label={
+            error ? `${restoreLabel} — last attempt failed, try again` : restoreLabel
+          }
+          className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
+        >
+          <ArchiveRestore aria-hidden />
+        </button>
+        {/* Visually-hidden live region so SR users hear the failure even if
+            focus has moved away from the icon button. */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {error ? "Couldn't restore the letter. Try again." : ""}
+        </span>
+      </>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={handleRestore}
-      disabled={isPending}
-      aria-label={compact ? "Restore letter" : undefined}
-      className={cn(
-        compact
-          ? buttonVariants({ variant: "ghost", size: "icon-sm" })
-          : buttonVariants({ variant: "outline", size: "sm" })
+    <div className="flex flex-col items-center gap-1">
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          Couldn&apos;t restore this letter. Please try again.
+        </p>
       )}
-    >
-      <ArchiveRestore aria-hidden />
-      {!compact && (isPending ? "Restoring…" : error ? "Try again" : "Restore")}
-    </button>
+      <button
+        type="button"
+        onClick={handleRestore}
+        disabled={isPending}
+        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+      >
+        <ArchiveRestore aria-hidden />
+        {isPending ? "Restoring…" : error ? "Try again" : "Restore"}
+      </button>
+    </div>
   );
 }

@@ -22,6 +22,8 @@ interface ArchiveKeptLetterButtonProps {
   redirectOnDone?: boolean;
   /** Compact icon-only trigger for dense list rows. */
   compact?: boolean;
+  /** When provided in compact mode, gives the icon button a distinct accessible name. */
+  letterName?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ArchiveKeptLetterButton({
   letterId,
   redirectOnDone = false,
   compact = false,
+  letterName,
 }: ArchiveKeptLetterButtonProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +45,18 @@ export function ArchiveKeptLetterButton({
   function handleArchive() {
     setError(null);
     startTransition(async () => {
-      const res = await archiveKeptLetterAction(letterId);
-      if (res.status === "archived") {
-        setOpen(false);
-        if (redirectOnDone) router.push("/dashboard");
-        else router.refresh();
-        return;
+      try {
+        const res = await archiveKeptLetterAction(letterId);
+        if (res.status === "archived") {
+          setOpen(false);
+          if (redirectOnDone) router.push("/dashboard");
+          else router.refresh();
+          return;
+        }
+        setError("Couldn't archive this letter. Please try again.");
+      } catch {
+        setError("Couldn't archive this letter. Please try again.");
       }
-      setError("Couldn't archive this letter. Please try again.");
     });
   }
 
@@ -67,7 +74,13 @@ export function ArchiveKeptLetterButton({
             ? buttonVariants({ variant: "ghost", size: "icon-sm" })
             : buttonVariants({ variant: "outline", size: "sm" })
         )}
-        aria-label={compact ? "Archive letter" : undefined}
+        aria-label={
+          compact
+            ? letterName
+              ? `Archive "${letterName}"`
+              : "Archive letter"
+            : undefined
+        }
       >
         <Archive aria-hidden />
         {!compact && "Archive"}

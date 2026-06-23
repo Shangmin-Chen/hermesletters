@@ -218,6 +218,8 @@ export default async function DashboardPage() {
             </div>
             <CardDescription>
               Letters you saved after opening.
+              {archivedLetters.length > 0 &&
+                " Archived letters are listed separately below."}
             </CardDescription>
           </CardHeader>
 
@@ -263,7 +265,11 @@ export default async function DashboardPage() {
                         </p>
                       </Link>
                       <div className="relative z-10 shrink-0">
-                        <ArchiveKeptLetterButton letterId={letter.id} compact />
+                        <ArchiveKeptLetterButton
+                          letterId={letter.id}
+                          letterName={letter.letterName}
+                          compact
+                        />
                       </div>
                     </li>
                   );
@@ -313,7 +319,11 @@ export default async function DashboardPage() {
                       </p>
                     </Link>
                     <div className="relative z-10 shrink-0">
-                      <RestoreKeptLetterButton letterId={letter.id} compact />
+                      <RestoreKeptLetterButton
+                        letterId={letter.id}
+                        letterName={letter.letterName}
+                        compact
+                      />
                     </div>
                   </li>
                 ))}

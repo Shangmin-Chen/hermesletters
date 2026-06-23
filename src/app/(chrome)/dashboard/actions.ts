@@ -45,6 +45,8 @@ export async function archiveKeptLetterAction(
     return { status: "cannot_archive" };
   }
 
+  // Defensive cache invalidation — a no-op today since the dashboard (and the
+  // received detail page) are force-dynamic; kept in case caching changes.
   revalidatePath("/dashboard");
   return { status: "archived" };
 }
@@ -71,6 +73,8 @@ export async function restoreKeptLetterAction(
     return { status: "cannot_restore" };
   }
 
+  // Defensive cache invalidation — a no-op today since the dashboard (and the
+  // received detail page) are force-dynamic; kept in case caching changes.
   revalidatePath("/dashboard");
   return { status: "restored" };
 }
