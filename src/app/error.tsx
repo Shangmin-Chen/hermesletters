@@ -38,7 +38,7 @@ export default function AppError({ error, reset }: ErrorProps) {
           <div className="flex flex-col gap-2">
             <Button
               onClick={reset}
-              className="w-full bg-wax text-primary-foreground hover:bg-wax-deep transition-colors rounded-full font-medium shadow-sm"
+              className="w-full bg-wax text-wax-foreground hover:bg-wax-deep transition-colors rounded-full font-medium shadow-sm"
               type="button"
             >
               Try again

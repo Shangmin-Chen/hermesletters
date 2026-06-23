@@ -10,10 +10,10 @@ import { SealMark } from "@/components/brand/SealMark";
 const UNSEAL_HOLD_MS = 750;
 
 // How long (ms) after commit we wait before firing onUnseal(). The flap
-// animation runs to 700ms (0.15s delay + 0.55s); we fire slightly earlier so
+// animation runs to 1000ms (0.45s delay + 0.55s); we fire slightly earlier so
 // the unlock round-trip overlaps the animation tail and the reveal feels
 // seamless rather than appending latency after the flap settles.
-const UNSEAL_COMMIT_MS = 600;
+const UNSEAL_COMMIT_MS = 900;
 
 // Geometry — mirrors WaxSeal's resting-seal constants.
 const REST_SEAL = 48; // px — interactive seal diameter on the flap

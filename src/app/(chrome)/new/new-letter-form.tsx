@@ -8,7 +8,9 @@ import {
   useCallback,
   useEffect,
 } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,16 +92,16 @@ function formatSealDate(d: Date) {
 
 // ── WaxSeal Component ────────────────────────────────────────────────────────
 //
-// v3: A closed (sealless) <Envelope> waits up top with an empty flap. The wax
-// seal rests below as the press target, wrapped in a charging ring that fills
-// as you hold. On commit the resting seal *flies up*, arcing and shrinking onto
-// the flap where it stamps into place — a separate DOM clone does the travel
-// (its delta/scale measured at commit time) so it lands exactly on the seal slot
-// that the Envelope's flap is reserving.
+// v4 (press-down stamp): The wax seal already rests on the flap of a closed
+// <Envelope> — like wax that's been dripped but not yet pressed. The seal itself
+// is the press target, wrapped in a charging ring that fills as you hold. On
+// commit the seal *presses straight down* into the flap (a brief squash via
+// animate-seal-press) while an impact ripple radiates out — like pushing a
+// signet down with your thumb. No travel, no clone: it stamps where it sits.
 //
 // Dual-path gesture (WCAG 2.5.1 — Pointer Gestures):
 //   • useLongPress  → hold SEAL_HOLD_MS ms to commit
-//   • usePress.onPress → single click/tap OR keyboard Enter/Space to commit
+//   • usePress.onPress → keyboard Enter/Space OR assistive activate commits now
 // Both paths are always available; the hold just shows the charging feedback.
 //
 // Re-entry: if the caller sets `sealed=true` (parent navigated Back), the seal
@@ -113,41 +115,28 @@ interface WaxSealProps {
   onBreakSeal: () => void;
 }
 
-// Geometry for the resting seal, its charging ring, and the landed seal.
+// Geometry for the seal sitting on the flap and its charging ring.
 // SealMark is rendered `tight`, so these sizes ≈ the seal's visible diameter.
 const REST_SEAL = 48; // px — interactive seal diameter
 const RING_BOX = 60; // px — charging-ring viewport (seal + a hair of breathing room)
 const RING_R = 27; // ring radius within the box — hugs the seal (~3px gap)
 const RING_C = 2 * Math.PI * RING_R; // circumference for dash math
-const LANDED_SEAL = 26; // px — seal size once stamped on the flap
-const FLY_SCALE = LANDED_SEAL / REST_SEAL; // clone shrinks to this on landing
 
-// Describes the in-flight clone: where it starts (top/left within the
-// container — exactly over the resting seal, so the animation can't snap) and
-// the delta to its landing point on the flap. dx is ~0 when the resting seal
-// and the flap seal share a center line, giving a straight-up flight.
-interface Flight {
-  left: number;
-  top: number;
-  dx: number;
-  dy: number;
-}
+// How long (ms) the press-down stamp animation runs before onSeal fires. Matches
+// the seal-press keyframe duration in globals.css (0.45s).
+const STAMP_MS = 450;
 
-function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
+export function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
   const [progress, setProgress] = useState(0); // 0–1 while held
   const [pressing, setPressing] = useState(false); // true while pointer is down
-  const [committing, setCommitting] = useState(false); // flight sequence running
-  const [landed, setLanded] = useState(false); // clone has stamped down
-  const [flight, setFlight] = useState<Flight | null>(null); // in-flight clone
+  const [stamping, setStamping] = useState(false); // press-down animation playing
   const pressStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   // Tracks whether a commit is in progress so onPressEnd doesn't drain progress.
   const committingRef = useRef(false);
-
-  // Refs used to measure the flight path at commit time.
-  const containerRef = useRef<HTMLDivElement>(null);
-  const restRef = useRef<HTMLDivElement>(null); // resting-seal ring box
-  const targetRef = useRef<HTMLDivElement>(null); // landing slot on the flap
+  // Holds the pending commit timer so break/unmount can cancel it before it
+  // fires a stray onSeal().
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Respect prefers-reduced-motion.
   const prefersReduced =
@@ -189,58 +178,27 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
     if (!sealed) setProgress(0);
   }, [sealed]);
 
-  // Measure the resting-seal center and the flap landing-slot center (both
-  // relative to the container) and stage the flying clone right on top of the
-  // resting seal. Starting exactly where the seal already is means the clone
-  // can never "snap" into a new position when it appears; it then travels by
-  // (dx, dy) to the flap — dx ≈ 0 when the two share a center line. Returns
-  // false if any node isn't mounted yet, so the caller can seal instantly.
-  const startFlight = useCallback(() => {
-    const c = containerRef.current?.getBoundingClientRect();
-    const r = restRef.current?.getBoundingClientRect();
-    const t = targetRef.current?.getBoundingClientRect();
-    if (!c || !r || !t) return false;
-
-    const restCx = r.left + r.width / 2 - c.left;
-    const restCy = r.top + r.height / 2 - c.top;
-    const targetCx = t.left + t.width / 2 - c.left;
-    const targetCy = t.top + t.height / 2 - c.top;
-
-    setFlight({
-      left: restCx - REST_SEAL / 2, // starts exactly over the resting seal
-      top: restCy - REST_SEAL / 2,
-      dx: targetCx - restCx, // ≈ 0 when aligned → straight up
-      dy: targetCy - restCy,
-    });
-    return true;
-  }, []);
-
   const commitSeal = useCallback(() => {
     if (disabled || sealed || committingRef.current) return;
     committingRef.current = true;
     cancelProgress();
     setProgress(1);
 
-    // Reduced motion (or any missing measurement): seal instantly.
-    if (prefersReduced || !startFlight()) {
+    // Reduced motion: skip the stamp animation, seal instantly.
+    if (prefersReduced) {
       committingRef.current = false;
       onSeal();
       return;
     }
-    // Hide the resting seal and let the clone fly; handleFlightEnd finalizes.
-    setCommitting(true);
-  }, [disabled, sealed, prefersReduced, cancelProgress, startFlight, onSeal]);
 
-  // Fires when the clone finishes its arc: reveal the stamped seal on the flap
-  // (with an impact ripple + press squash), drop the clone, then commit.
-  const handleFlightEnd = useCallback(() => {
-    setLanded(true);
-    setFlight(null);
-    setTimeout(() => {
+    // Play the press-down squash + impact ripple in place, then commit.
+    setStamping(true);
+    commitTimerRef.current = setTimeout(() => {
+      commitTimerRef.current = null;
       committingRef.current = false;
       onSeal();
-    }, 360);
-  }, [onSeal]);
+    }, STAMP_MS);
+  }, [disabled, sealed, prefersReduced, cancelProgress, onSeal]);
 
   // useLongPress owns the hold-to-commit gesture; accessibilityDescription
   // tells screen-reader users the gesture exists (WCAG 2.5.1 advisory).
@@ -277,25 +235,28 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
     },
   });
 
-  // Clean up rAF on unmount.
+  // Clean up rAF + pending commit timer on unmount.
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (commitTimerRef.current !== null) clearTimeout(commitTimerRef.current);
     };
   }, []);
 
   // Breaking the seal resets all local animation state back to resting. The
   // step sections are toggled with `hidden` (never unmounted), so this
   // component keeps its state across seal/break cycles — without this reset,
-  // the resting seal would stay stuck at opacity 0 with a full charging ring.
+  // the seal would stay stuck mid-stamp with a full charging ring.
   const handleBreak = useCallback(() => {
     committingRef.current = false;
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
+    if (commitTimerRef.current !== null) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
     pressStartRef.current = null;
-    setCommitting(false);
-    setLanded(false);
-    setFlight(null);
+    setStamping(false);
     setPressing(false);
     setProgress(0);
     onBreakSeal();
@@ -308,13 +269,10 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
   const sealOpacity = pressing ? 0.6 + progress * 0.4 : 1; // 0.6 → 1.0
   const glow = pressing ? progress : 0;
 
-  // The stamped seal shows once it has landed (mid-commit) or on re-entry.
-  const showLandedSeal = sealed || landed;
-
   return (
-    <div ref={containerRef} className="relative flex flex-col items-center gap-6">
-      {/* ── Closed envelope with an empty flap — waiting to be stamped ──── */}
-      <div className="relative w-32 h-32">
+    <div className="relative flex flex-col items-center gap-6">
+      {/* ── Closed envelope — the wax seal rests right on its flap ───────── */}
+      <div className="relative w-32 h-32 flex items-center justify-center">
         <Envelope
           state="sealed"
           showSeal={false}
@@ -322,86 +280,31 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
           aria-hidden
         />
 
-        {/* Landing slot — centered over the flap fold. Always present (even
-            empty) so its center can be measured as the flight target. */}
+        {/* The wax seal sitting on the flap — also the press target. Centered
+            over the flap fold, wrapped in its charging ring. */}
         <div
-          ref={targetRef}
-          className="absolute -translate-x-1/2 -translate-y-1/2"
-          style={{ left: "50%", top: "59%", width: LANDED_SEAL, height: LANDED_SEAL }}
-        >
-          {showLandedSeal && (
-            <div className="relative">
-              {/* Impact ripple — only on a fresh stamp, not on re-entry. */}
-              {landed && !sealed && !prefersReduced && (
-                <span
-                  className="absolute inset-0 rounded-full border-2 border-ink animate-seal-impact"
-                  aria-hidden
-                />
-              )}
-              <SealMark
-                size={LANDED_SEAL}
-                tight
-                groupClassName={landed && !prefersReduced ? "animate-seal-press" : ""}
-                aria-hidden
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Flying clone — the seal in transit from rest to flap ────────── */}
-      {flight && (
-        <div
-          className="pointer-events-none absolute z-10 animate-seal-fly"
-          style={
-            {
-              left: flight.left,
-              top: flight.top,
-              width: REST_SEAL,
-              height: REST_SEAL,
-              "--fly-x": `${flight.dx}px`,
-              "--fly-y": `${flight.dy}px`,
-              "--fly-scale": FLY_SCALE,
-            } as React.CSSProperties
-          }
-          onAnimationEnd={handleFlightEnd}
-          aria-hidden
-        >
-          <SealMark size={REST_SEAL} tight aria-hidden />
-        </div>
-      )}
-
-      {sealed ? (
-        /* ── Sealed state: date + break-seal affordance (seal sits on flap) ── */
-        <div className="flex flex-col items-center gap-3">
-          <p className="text-sm font-medium text-ink">Sealed · {sealDate}</p>
-          <button
-            type="button"
-            onClick={handleBreak}
-            className={[
-              "inline-flex items-center gap-1.5 text-xs text-muted-foreground",
-              "underline underline-offset-2 hover:text-ink transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "focus-visible:ring-offset-2 rounded",
-            ].join(" ")}
-          >
-            <LockOpen className="size-3" aria-hidden />
-            Break seal to edit
-          </button>
-        </div>
-      ) : (
-        /* ── Unsealed: the resting seal in its charging ring ──────────────
-            Kept in layout (opacity 0) during the flight so the container
-            doesn't jump as the clone travels. */
-        <div
-          className="flex flex-col items-center gap-3 transition-opacity"
-          style={{ opacity: committing ? 0 : 1 }}
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "59%",
+            transform: "translate(-50%, -50%)",
+            width: REST_SEAL,
+            height: REST_SEAL,
+          }}
         >
           <div
-            ref={restRef}
             className="relative"
-            style={{ width: RING_BOX, height: RING_BOX }}
+            style={{ width: RING_BOX, height: RING_BOX, margin: "auto", transform: "translate(-6px, -6px)" }}
           >
+            {/* Impact ripple — radiates the instant the seal presses down. */}
+            {stamping && !prefersReduced && (
+              <span
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-wax animate-seal-impact"
+                style={{ width: REST_SEAL, height: REST_SEAL }}
+                aria-hidden
+              />
+            )}
+
             {/* Charging ring — track + progress arc, sweeping from the top. */}
             <svg
               className="absolute inset-0 -rotate-90"
@@ -444,10 +347,12 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
               aria-label={
                 disabled
                   ? "Write your letter first to seal it"
-                  : "Press and hold to seal the letter"
+                  : sealed
+                    ? "Letter sealed"
+                    : "Press and hold to seal the letter"
               }
-              disabled={disabled}
-              aria-disabled={disabled}
+              disabled={disabled || sealed}
+              aria-disabled={disabled || sealed}
               /* Centering is done entirely via the inline `transform` below.
                  Tailwind v4's `-translate-*` utilities compile to the separate
                  `translate:` property, which would stack with the inline
@@ -457,7 +362,8 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
                 "select-none rounded-full",
                 "focus-visible:outline-none focus-visible:ring-2",
                 "focus-visible:ring-ring focus-visible:ring-offset-2",
-                disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer",
+                disabled || sealed ? "cursor-default" : "cursor-pointer",
+                disabled ? "opacity-40" : "",
               ].join(" ")}
               style={
                 !prefersReduced
@@ -478,28 +384,52 @@ function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
                 size={REST_SEAL}
                 tight
                 groupClassName={
-                  !disabled && !pressing && !prefersReduced ? "animate-wax-pulse" : ""
+                  stamping && !prefersReduced
+                    ? "animate-seal-press"
+                    : !disabled && !sealed && !pressing && !prefersReduced
+                      ? "animate-wax-pulse"
+                      : ""
                 }
                 aria-hidden
               />
             </button>
           </div>
+        </div>
+      </div>
 
-          {/* Status label — fixed width so changing copy ("Keep holding…" →
-              "Press and hold to seal") can't resize the (shrink-wrapped)
-              container at the moment of commit and shift its center axis, which
-              would make the flying clone snap sideways. */}
-          <p
-            className="w-56 text-sm text-center text-muted-foreground min-h-[1.25rem]"
-            aria-live="polite"
+      {sealed ? (
+        /* ── Sealed state: date + break-seal affordance (seal sits on flap) ── */
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm font-medium text-ink">Sealed · {sealDate}</p>
+          <button
+            type="button"
+            onClick={handleBreak}
+            className={[
+              "inline-flex items-center gap-1.5 text-xs text-muted-foreground",
+              "underline underline-offset-2 hover:text-ink transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "focus-visible:ring-offset-2 rounded",
+            ].join(" ")}
           >
-            {disabled
-              ? "Write your letter first"
+            <LockOpen className="size-3" aria-hidden />
+            Break seal to edit
+          </button>
+        </div>
+      ) : (
+        /* Status label — fixed width so changing copy can't resize the
+            container at the moment of commit. */
+        <p
+          className="w-56 text-sm text-center text-muted-foreground min-h-[1.25rem]"
+          aria-live="polite"
+        >
+          {disabled
+            ? "Write your letter first"
+            : stamping
+              ? "Sealing…"
               : progress > 0 && progress < 1
                 ? "Keep holding…"
                 : "Press and hold to seal"}
-          </p>
-        </div>
+        </p>
       )}
     </div>
   );
@@ -526,6 +456,8 @@ export function NewLetterForm({
   // Whether the letter has been sealed. Separate from step so navigating Back
   // into step 2 remembers the prior seal and shows the re-entry affordance.
   const [isSealed, setIsSealed] = useState(false);
+
+  const router = useRouter();
 
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1165,10 +1097,9 @@ export function NewLetterForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="secret_answer">Answer</Label>
-              <Input
+              <PasswordInput
                 id="secret_answer"
                 name="secret_answer"
-                type="password"
                 placeholder="e.g. moonhouse"
                 required
                 disabled={isPending}
@@ -1187,12 +1118,11 @@ export function NewLetterForm({
         <Button
           type="button"
           variant="outline"
-          onClick={goBack}
-          disabled={step === 0 || isPending}
-          className={step === 0 ? "invisible" : ""}
+          onClick={step === 0 ? () => router.push("/dashboard") : goBack}
+          disabled={isPending}
         >
           <ArrowLeft className="size-4" aria-hidden />
-          Back
+          {step === 0 ? "Back to dashboard" : "Back"}
         </Button>
 
         {/* Step 3 (index 2) uses the wax seal gesture instead of a Next button.

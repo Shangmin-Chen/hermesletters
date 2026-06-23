@@ -385,13 +385,14 @@ export function UnsealedView({
                     reader to incognito/another device, and lapses after 24h. */}
                 <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                   <strong className="text-foreground">
-                    Keep it from this browser.
+                    Kept on this browser.
                   </strong>{" "}
-                  This letter is open now, and only you — on this device and
-                  browser — can keep it. The claim lives in a cookie here, so
-                  opening it again in a private/incognito window or on another
-                  device won&apos;t work, and clearing your cookies will lose it.
-                  You have 24 hours to keep it before it slips away for good.
+                  This letter is open now, and only to you — on this specific
+                  device and browser. The claim lives in a cookie here, so
+                  opening it again elsewhere (another device, or a
+                  private/incognito window) won&apos;t work, and clearing your
+                  cookies loses it. You have 24 hours to keep it before it slips
+                  away for good.
                 </div>
 
                 {/* Branch 1: logged in + has profile → show the Keep button */}

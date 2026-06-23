@@ -26,9 +26,8 @@ export interface EnvelopeProps {
  * Envelope — brand SVG illustration for Hermes' Letters.
  *
  * Uses `currentColor` for ink lines so it inherits text color in any context.
- * The wax-seal circle uses `var(--wax)` directly — which maps to the primary
- * colour token, a zero-chroma greyscale in the paper-and-ink theme (not
- * terracotta; the palette is intentionally achromatic).
+ * The wax-seal circle uses `var(--wax)` directly — a muted sealing-wax red, the
+ * one saturated accent against the otherwise paper-and-ink (achromatic) palette.
  *
  * The wax seal delegates to `<SealMarkGeometry>` (single source of truth for
  * the rosette / ring / hub artwork). The `<g data-seal>` group inside it is

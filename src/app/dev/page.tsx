@@ -7,6 +7,11 @@ const routes = [
     desc: "Simple form fixture using the same UI as /new.",
   },
   {
+    href: "/dev/sealing",
+    label: "Wax-seal stamp",
+    desc: "WaxSeal standalone — press and hold to stamp the seal down. Use Replay to re-play.",
+  },
+  {
     href: "/dev/locked",
     label: "Locked letter",
     desc: "The sealed envelope a recipient first sees, with the wax-unseal gesture.",

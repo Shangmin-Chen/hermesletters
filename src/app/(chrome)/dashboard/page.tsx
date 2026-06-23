@@ -156,15 +156,17 @@ export default async function DashboardPage() {
                           aria-hidden
                         />
                         <div className="min-w-0">
-                        <p className="font-medium">
-                          {mail.letterName}
+                        <p className="flex items-baseline gap-1 min-w-0 font-medium">
+                          <span className="min-w-0 truncate" title={mail.letterName}>
+                            {mail.letterName}
+                          </span>
                           {unopened && (
-                            <span className="ml-2 align-middle text-xs font-normal text-wax">
+                            <span className="shrink-0 align-middle text-xs font-normal text-wax">
                               · sealed
                             </span>
                           )}
                           {expired && (
-                            <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">
+                            <span className="shrink-0 align-middle text-xs font-normal text-muted-foreground">
                               · expired
                             </span>
                           )}
@@ -221,9 +223,11 @@ export default async function DashboardPage() {
                     <li key={letter.id}>
                       <Link
                         href={`/dashboard/received/${letter.id}`}
-                        className="block py-4 transition-colors hover:text-primary"
+                        className="block min-w-0 py-4 transition-colors hover:text-primary"
                       >
-                        <p className="font-medium">{letter.letterName}</p>
+                        <p className="truncate font-medium" title={letter.letterName}>
+                          {letter.letterName}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           From @{letter.senderHandle} to {letter.receiverName}
                           {savedDate ? ` · kept ${savedDate}` : ""}

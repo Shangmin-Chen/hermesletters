@@ -16,8 +16,9 @@ import React from "react";
 // For a standalone square SVG (SealMark), a translate(0, -1) normalizes the
 // center to (48, 48).
 //
-// Colors: `var(--wax)` (zero-chroma greyscale, intentionally NOT terracotta)
-//         `var(--primary-foreground)` for ring / rosette / hub.
+// Colors: `var(--wax)` (muted sealing-wax red) for the disc, and
+//         `var(--wax-foreground)` (a light wax-highlight) for the impressed
+//         ring / rosette / hub so the stamp stays legible on the red wax.
 
 export interface SealMarkGeometryProps {
   /** Extra class names on the <g data-seal> group. Use for animation classes
@@ -61,31 +62,31 @@ export function SealMarkGeometry({ className = "" }: SealMarkGeometryProps) {
         cy="49"
         r="7.8"
         fill="none"
-        stroke="var(--primary-foreground)"
+        stroke="var(--wax-foreground)"
         strokeWidth="0.9"
         opacity="0.45"
       />
 
       {/* 6-point rosette — long spokes at 0°, 60°, 120°, 180°, 240°, 300° */}
       <line x1="48" y1="44.5" x2="48" y2="46.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
       <line x1="48" y1="51.5" x2="48" y2="53.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
       <line x1="43.1" y1="46.5" x2="44.8" y2="47.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
       <line x1="51.2" y1="50.5" x2="52.9" y2="51.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
       <line x1="43.1" y1="51.5" x2="44.8" y2="50.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
       <line x1="51.2" y1="47.5" x2="52.9" y2="46.5"
-        stroke="var(--primary-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+        stroke="var(--wax-foreground)" strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
 
       {/* Center hub dot */}
       <circle
         cx="48"
         cy="49"
         r="1.4"
-        fill="var(--primary-foreground)"
+        fill="var(--wax-foreground)"
         opacity="0.65"
       />
     </g>
