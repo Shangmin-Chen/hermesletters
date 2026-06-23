@@ -78,10 +78,10 @@ export function RevealOnce({ letterId, chrome, children }: RevealOnceProps) {
     // Flag was set AND motion is allowed → play the brief chrome reveal.
     setAnimating(true);
 
-    // Hard cap: end the reveal after the CSS beats finish (≤ ~800ms). Using a
+    // Hard cap: end the reveal after the CSS beats finish (≤ ~1100ms). Using a
     // timer only to *remove* the animating class is safe — it doesn't gate any
     // body rendering (the body is server-rendered and always at opacity 1).
-    const REVEAL_MS = 800;
+    const REVEAL_MS = 1100;
     const endTimer = window.setTimeout(() => setAnimating(false), REVEAL_MS);
 
     // Skip-to-final on any user intent.

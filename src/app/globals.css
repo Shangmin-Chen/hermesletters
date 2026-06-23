@@ -25,6 +25,7 @@
   --color-ink: var(--ink);
   --color-wax: var(--wax);
   --color-wax-deep: var(--wax-deep);
+  --color-wax-foreground: var(--wax-foreground);
   --color-seal: var(--seal);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -87,9 +88,13 @@
   --sidebar-ring: oklch(0.708 0 0);
   --paper: oklch(0.985 0 0);
   --ink: var(--foreground);
-  --wax: var(--primary);
-  --wax-deep: oklch(0.145 0 0);
-  --seal: var(--primary);
+  /* Sealing-wax red — a muted oxblood, the one saturated accent against the
+     paper-and-ink palette. --wax-foreground is the light wax-highlight used for
+     the seal's impressed rosette/ring and for text on a wax-filled surface. */
+  --wax: oklch(0.47 0.13 25);
+  --wax-deep: oklch(0.37 0.11 25);
+  --wax-foreground: oklch(0.97 0.012 60);
+  --seal: var(--wax);
 }
 
 .dark {
@@ -126,9 +131,11 @@
   --sidebar-ring: oklch(0.556 0 0);
   --paper: var(--card);
   --ink: var(--foreground);
-  --wax: var(--primary);
-  --wax-deep: oklch(0.985 0 0);
-  --seal: var(--primary);
+  /* Slightly lighter wax on the dark surface so the seal still reads as red. */
+  --wax: oklch(0.52 0.14 25);
+  --wax-deep: oklch(0.42 0.12 25);
+  --wax-foreground: oklch(0.97 0.012 60);
+  --seal: var(--wax);
 }
 
 @layer base {
@@ -202,9 +209,17 @@
 }
 
 @keyframes seal-break {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+  0%   { transform: scale(1); opacity: 1; }
+  30%  { transform: scale(0.8); opacity: 1; }
+  60%  { transform: scale(1.12); opacity: 1; }
   100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes unseal-seal-break {
+  0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  30%  { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
 }
 
 @keyframes reveal-flap-open {
@@ -223,9 +238,9 @@
    and springs back to resting scale. Applied to the <SealMark> wrapper div. */
 @keyframes seal-press {
   0%   { transform: scale(1); }
-  35%  { transform: scale(0.86) translateY(4px); }
-  70%  { transform: scale(1.04) translateY(-1px); }
-  100% { transform: scale(1)   translateY(0); }
+  35%  { transform: scale(0.8); }
+  70%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
 
 /* Envelope closes: flap swings down and stamps shut — the forward motion of
@@ -237,31 +252,8 @@
   100% { transform: scale(1) translateY(0); }
 }
 
-/* Seal flight — the resting wax seal travels straight up onto the envelope flap
-   when the hold completes, then presses into place. The clone is already
-   positioned on the envelope's center axis, so this is a purely vertical move
-   (--fly-y, measured at commit time) followed by an in-place shrink to its
-   stamped size (--fly-scale). Scale is anchored at the element's center — which,
-   because the seal art fills the clone, is the middle of the seal — so it never
-   drifts sideways. Two phases: glide up at full size, then stamp down. */
-@keyframes seal-fly {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  60% {
-    transform: translate(var(--fly-x), var(--fly-y)) scale(1);
-  }
-  100% {
-    transform: translate(var(--fly-x), var(--fly-y)) scale(var(--fly-scale));
-  }
-}
-
-.animate-seal-fly {
-  animation: seal-fly 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-/* Impact ripple — a ring that expands outward from the landing point the
-   instant the seal stamps down. */
+/* Impact ripple — a ring that expands outward from the seal the instant it
+   presses down into the flap. */
 @keyframes seal-impact {
   0% {
     transform: scale(0.35);
@@ -303,12 +295,13 @@
 
 .animate-seal-break,
 [data-reveal="playing"] .reveal-seal {
-  animation: seal-break 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: seal-break 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-flap-open,
 [data-reveal="playing"] .reveal-flap {
   animation: reveal-flap-open 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.45s;
 }
 
 /* Wax-unseal sequence — the recipient-side reverse of the seal ceremony.
@@ -316,12 +309,12 @@
    cracks and lifts off (.unseal-seal) while the flap swings open (.unseal-flap).
    Reuses the existing seal-break and reveal-flap-open keyframes. */
 [data-unsealing="playing"] .unseal-seal {
-  animation: seal-break 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: unseal-seal-break 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 [data-unsealing="playing"] .unseal-flap {
   animation: reveal-flap-open 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.15s;
+  animation-delay: 0.45s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -331,7 +324,6 @@
   .animate-wax-pulse,
   .animate-seal-break,
   .animate-seal-press,
-  .animate-seal-fly,
   .animate-seal-impact,
   .animate-envelope-close,
   .animate-flap-open,

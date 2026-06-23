@@ -122,7 +122,7 @@ export default async function InboxLetterPage({ params }: PageProps) {
               <Envelope state="open" className="h-14 w-14 text-wax" aria-hidden />
             </div>
             {authRow.letterName && (
-              <h1 className="mb-2 font-serif text-xl font-semibold leading-snug text-foreground">
+              <h1 className="mb-2 line-clamp-2 font-serif text-xl font-semibold leading-snug text-foreground">
                 {authRow.letterName}
               </h1>
             )}

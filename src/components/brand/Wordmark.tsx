@@ -21,8 +21,8 @@ const sizeMap = {
  *
  * Combines the Envelope mark with the product name.
  * Inherits text color so it works on any background; the wax seal in the
- * Envelope component renders in `var(--wax)`, which maps to the primary colour
- * token — a zero-chroma greyscale in the paper-and-ink theme (not terracotta).
+ * Envelope component renders in `var(--wax)` — a muted sealing-wax red, the one
+ * saturated accent against the otherwise paper-and-ink (achromatic) palette.
  *
  * @example
  *   <Wordmark />                        // default md, inherits color

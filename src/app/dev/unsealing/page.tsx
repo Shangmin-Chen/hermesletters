@@ -32,7 +32,7 @@ export default function DevUnsealing() {
       <button
         type="button"
         onClick={handleReplay}
-        className="fixed right-4 top-4 z-50 rounded-full border border-wax/50 bg-card/80 px-3 py-1.5 text-xs font-medium text-wax shadow-sm backdrop-blur transition-colors hover:bg-wax hover:text-primary-foreground"
+        className="fixed right-4 top-4 z-50 rounded-full border border-wax/50 bg-card/80 px-3 py-1.5 text-xs font-medium text-wax shadow-sm backdrop-blur transition-colors hover:bg-wax hover:text-wax-foreground"
       >
         ▶ Replay break
       </button>

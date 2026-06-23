@@ -133,7 +133,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
 
             {/* Letter name / title */}
             {authRow.letterName && (
-              <h1 className="font-serif text-xl font-semibold text-foreground leading-snug mb-2">
+              <h1 className="line-clamp-2 font-serif text-xl font-semibold text-foreground leading-snug mb-2">
                 {authRow.letterName}
               </h1>
             )}
