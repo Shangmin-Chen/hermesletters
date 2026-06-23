@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, count, eq, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { letters } from "@/db/schema";
+import { letters, letterVerifyAttempts } from "@/db/schema";
 
 // ---------------------------------------------------------------------------
 // Authorization helper — constant-time comparison to avoid timing attacks
@@ -76,8 +76,26 @@ async function handler(request: NextRequest): Promise<NextResponse> {
 
   const expiredCount = flipped.length;
 
-  // ── 3. Return summary (no sensitive data) ─────────────────────────────────
-  return NextResponse.json({ expired: expiredCount });
+  // ── 3. Prune stale verify-attempt rows ────────────────────────────────────
+  //
+  // Individual verify/open flows prune rows for the letter being checked.  This
+  // global cleanup is the bounded-growth backstop for letters that stop seeing
+  // traffic after failed attempts.
+  const staleAttemptCutoff = sql`now() - interval '1 hour'`;
+  const [{ staleAttemptCount }] = await db
+    .select({ staleAttemptCount: count() })
+    .from(letterVerifyAttempts)
+    .where(lt(letterVerifyAttempts.createdAt, staleAttemptCutoff));
+
+  await db
+    .delete(letterVerifyAttempts)
+    .where(lt(letterVerifyAttempts.createdAt, staleAttemptCutoff));
+
+  // ── 4. Return summary (no sensitive data) ─────────────────────────────────
+  return NextResponse.json({
+    expired: expiredCount,
+    prunedVerifyAttempts: staleAttemptCount,
+  });
 }
 
 export const GET = handler;

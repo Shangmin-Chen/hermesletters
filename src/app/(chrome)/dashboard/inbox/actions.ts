@@ -1,17 +1,18 @@
 "use server";
 
-import { and, count, eq, lt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { letters, letterVerifyAttempts } from "@/db/schema";
+import { letters } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
 import { verifySecretAnswer } from "@/lib/letter-security";
+import {
+  profileVerifyActorKey,
+  recordVerifyAttemptWithinLimits,
+} from "@/lib/letter-verify-rate-limit";
 
 export type OpenDirectLetterResult = {
   status: "opened" | "noop" | "incorrect" | "expired" | "rate_limited";
 };
-
-const DURABLE_WINDOW_MS = 10 * 60 * 1000;
-const DURABLE_MAX_ATTEMPTS = 20;
 
 /**
  * Open a DIRECT letter from the recipient's inbox. The authenticated analogue of
@@ -60,26 +61,14 @@ export async function openDirectLetterAction(
   }
 
   if (row.secretPrompt) {
-    const windowStart = new Date(now.getTime() - DURABLE_WINDOW_MS);
-    await db
-      .delete(letterVerifyAttempts)
-      .where(
-        and(
-          eq(letterVerifyAttempts.letterId, letterId),
-          lt(letterVerifyAttempts.createdAt, windowStart)
-        )
-      );
+    const rateLimit = await recordVerifyAttemptWithinLimits({
+      letterId,
+      actorKey: profileVerifyActorKey(profile.id),
+    });
 
-    const [{ attemptCount }] = await db
-      .select({ attemptCount: count() })
-      .from(letterVerifyAttempts)
-      .where(eq(letterVerifyAttempts.letterId, letterId));
-
-    if (attemptCount >= DURABLE_MAX_ATTEMPTS) {
+    if (!rateLimit.allowed) {
       return { status: "rate_limited" };
     }
-
-    await db.insert(letterVerifyAttempts).values({ letterId });
 
     if (
       !guess ||

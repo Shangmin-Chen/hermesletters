@@ -63,7 +63,11 @@ export async function onboardingAction(
     if (error.code === "23505") {
       return { error: "That handle is already taken. Please choose another." };
     }
-    return { error: error.message };
+    console.error("Failed to create onboarding profile", {
+      code: error.code,
+      handle,
+    });
+    return { error: "Something went wrong creating your profile. Please try again." };
   }
 
   // Profile created — return the user to their letter if a safe `next` was

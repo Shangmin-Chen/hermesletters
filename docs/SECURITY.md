@@ -22,10 +22,12 @@ Two data paths, deliberately separated:
   query **selects only the columns it needs** for the decision at hand (verify
   never selects `body`; the Received page authorizes on `saved_by` first, then a
   *second* query pulls `body`).
-- **Supabase JS client (RLS-enforced)** — auth and RLS-protected client reads.
-  Senders can `INSERT` letters scoped to themselves but **never read them back**
-  (no sent-history). Saved letters are readable only by `saved_by = auth.uid()`.
-  `letter_images` has RLS on with **no client policy** (default-deny).
+- **Supabase JS client (RLS-enforced)** — auth/profile operations only. The
+  `letters`, `letter_images`, and `letter_verify_attempts` tables are default-deny
+  to public clients: no direct public `INSERT`, `SELECT`, `UPDATE`, or `DELETE`
+  policy is granted for full letter rows. Letter creation, inbox reads, saved
+  reads, unlocks, and saves all go through server-mediated Drizzle/service-role
+  code paths.
 
 ## The single validated branch
 
@@ -62,9 +64,16 @@ shared-secret answer. The verify route
 submitted token and compares it with `letters.open_token_hash` before checking
 the answer. A bad or missing token gets no answer oracle.
 
-Answer attempts are capped durably with `letter_verify_attempts`, so spoofed IPs
-and multiple server instances do not bypass the rolling limit. Direct letters
-with a sender-chosen shared secret use the same attempt table from the
+Answer attempts are capped durably with `letter_verify_attempts`: there is a
+global per-letter rolling limit and a per actor+letter rolling limit. The
+prune/count/insert decision runs inside the private
+`record_letter_verify_attempt` Postgres function under a transaction-scoped
+per-letter advisory lock, so concurrent guesses cannot all pass on a stale
+below-limit count. Function execution is revoked from public browser RPC roles.
+Invite actors are keyed by an HMAC of request metadata,
+direct-letter actors are keyed by an HMAC of the authenticated profile id, and
+raw IP/user-agent/profile ids are not stored in the attempt table. Direct
+letters with a sender-chosen shared secret use the same attempt table from the
 authenticated inbox open action.
 
 ## Invite-only signup
@@ -95,9 +104,8 @@ control is **identity-based, not bearer-link-based**:
   starts a 24-hour grace window; saving is authorized by receiver identity and
   the still-open window. The inbox view loads `body`/images **only after** the
   `receiver_id === session user` ownership check (404 otherwise); the inbox list
-  is metadata-only. An RLS policy `letters: select received by me`
-  (`receiver_id = auth.uid()`) backs this as defense-in-depth, though all real
-  reads go through the service-role Drizzle client.
+  is metadata-only. Direct inbox reads are intentionally server-mediated instead
+  of backed by a full-row public `letters` SELECT policy.
 
 ## Redirect safety
 

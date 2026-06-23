@@ -11,9 +11,14 @@ paste each file into the Supabase SQL editor in the numbered order below.
 | 3 | `0002_shocking_mantis.sql` | drizzle-kit | Creates `letter_verify_attempts` table (id uuid PK, letter_id uuid FK→letters cascade, created_at timestamptz); adds `letter_verify_attempts_letter_id_created_at_idx` composite index on `(letter_id, created_at)` for efficient windowed counts. |
 | 4 | `0003_verify_attempts_rls.sql` | hand-authored (custom, journal-tracked) | Enables RLS on `letter_verify_attempts` with **no permissive client policy** (default-deny). All access is exclusively server-side via Drizzle using the service role (bypasses RLS). Purpose: durable per-letter verify rate limiting — the server uses this table to cap total guess attempts per letter within a rolling window, regardless of spoofed IPs or multiple server instances. Consistent with the `letter_images` RLS pattern. |
 | 5 | `0004_clever_talos.sql` | drizzle-kit | Removes the original answer columns and verify-attempt table, and adds `letter_images.caption`. |
-| 6 | `0005_wandering_gunslinger.sql` | drizzle-kit + hand-edited RLS | Adds direct letters (`letters.receiver_id`), the phonebook seen cursor, and the received-by-me RLS policy. |
+| 6 | `0005_wandering_gunslinger.sql` | drizzle-kit + hand-edited RLS | Adds direct letters (`letters.receiver_id`), the phonebook seen cursor, and the original received-by-me RLS policy, which is removed by `0009_lock_down_letters_rls.sql`. |
 | 7 | `0006_famous_prism.sql` | drizzle-kit | Adds `letters_sender_id_idx` for sender-side phonebook queries. |
 | 8 | `0007_noisy_red_ghost.sql` | drizzle-kit + hand-edited RLS | Adds tokenized invite links and shared-secret prompt fields (`open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`), recreates `letter_verify_attempts`, and enables RLS on the attempts table. |
+| 9 | `0008_eager_earthquake.sql` | drizzle-kit | Adds `letters.archived_at`. |
+| 10 | `0009_lock_down_letters_rls.sql` | hand-authored (custom, journal-tracked) | Drops the legacy public `letters` policies for sender insert, saved-letter select, and direct inbox select. Letter creation and reads are mediated by server-side Drizzle/service-role code paths. |
+| 11 | `0010_verify_actor_rate_limit.sql` | drizzle-kit | Adds nullable `letter_verify_attempts.actor_key` plus `(letter_id, actor_key, created_at)` index for privacy-preserving per-actor answer-attempt windows. |
+| 12 | `0011_atomic_verify_attempts.sql` | hand-authored (custom, journal-tracked) | Adds the private `record_letter_verify_attempt` Postgres function. The app calls it to prune/count/insert attempts under a transaction-scoped per-letter advisory lock, preventing concurrent guesses from bypassing the cap. |
+| 13 | `0012_revoke_verify_attempt_rpc_roles.sql` | hand-authored (custom, journal-tracked) | Revokes `record_letter_verify_attempt` execution from Supabase `anon` and `authenticated` roles so the function cannot be called as a browser RPC endpoint. |
 
 ## RLS policy summary
 
@@ -21,11 +26,11 @@ paste each file into the Supabase SQL editor in the numbered order below.
 - **SELECT / INSERT / UPDATE**: own row only (`id = auth.uid()`).
 
 ### letters
-- **INSERT**: allowed when `sender_id = auth.uid()` (senders create letters).
-- **SELECT**: allowed when `saved_by = auth.uid()` (Received-mail view only).
-- No sender read-back — a sent letter is fire-and-forget.
-- No client UPDATE or DELETE policy is granted.
-- Locked-page / verify / grace reads go through the **service role** (Drizzle, server-only) which bypasses RLS — so `body`, `claim_token`, `open_token_hash`, and shared-secret answer hashes are never accessible to unauthenticated clients through RLS.
+- No public `INSERT`, `SELECT`, `UPDATE`, or `DELETE` policy is granted on `letters`.
+- Letter creation is server-mediated through Drizzle/service-role code paths so public clients cannot bypass creation invariants.
+- Direct inbox reads (`receiver_id`) and saved Received-mail reads (`saved_by`) are server-mediated through Drizzle/service-role code paths.
+- The old saved-letter public `SELECT` policy is not retained: the current Received-mail flow does not need full-row public access, and exposing full `letters` rows would unnecessarily disclose internal fields such as `body`, `claim_token`, `open_token_hash`, and shared-secret answer hashes to the public Supabase client.
+- If a future client-facing saved-letter feature needs direct Supabase access, add a narrow server route or projection instead of restoring full-row `SELECT` on `letters`.
 
 ### letter_images
 - RLS enabled with **no permissive client policy** — clients cannot read this table.
@@ -60,6 +65,12 @@ paste each file into the Supabase SQL editor in the numbered order below.
    DELETE FROM letter_verify_attempts
    WHERE  created_at < now() - interval '1 hour';
    ```
+
+The JSON response is a non-sensitive count summary:
+
+```json
+{ "expired": 0, "prunedVerifyAttempts": 0 }
+```
 
 **Data safety:** neither operation deletes `letters` rows or `letter_images` rows. Per the SPEC, expired letters retain their data — they are simply inaccessible to everyone.
 

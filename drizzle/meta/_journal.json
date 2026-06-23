@@ -64,6 +64,34 @@
       "when": 1782227710302,
       "tag": "0008_eager_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782243422535,
+      "tag": "0009_lock_down_letters_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782243526676,
+      "tag": "0010_verify_actor_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782244664865,
+      "tag": "0011_atomic_verify_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782245168170,
+      "tag": "0012_revoke_verify_attempt_rpc_roles",
+      "breakpoints": true
     }
   ]
 }

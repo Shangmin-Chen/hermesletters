@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNull, lt, count } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { letters, letterVerifyAttempts } from "@/db/schema";
+import { letters } from "@/db/schema";
 import { hashOpenToken, verifySecretAnswer } from "@/lib/letter-security";
+import {
+  inviteVerifyActorKey,
+  recordVerifyAttemptWithinLimits,
+} from "@/lib/letter-verify-rate-limit";
 
 // ---------------------------------------------------------------------------
 // POST /api/letters/[id]/verify
@@ -16,9 +20,6 @@ import { hashOpenToken, verifySecretAnswer } from "@/lib/letter-security";
 //   - cookie value: letters.claim_token  (a fresh UUID)
 //   - httpOnly, Secure (only over HTTPS), SameSite=Lax, path=/, maxAge=24h
 // ---------------------------------------------------------------------------
-
-const DURABLE_WINDOW_MS = 10 * 60 * 1000;
-const DURABLE_MAX_ATTEMPTS = 20;
 
 export async function POST(
   request: NextRequest,
@@ -87,27 +88,19 @@ export async function POST(
     return NextResponse.json({ status: "invalid_link" }, { status: 404 });
   }
 
-  // ── 5. Durable per-letter answer-attempt cap ─────────────────────────────
-  const windowStart = new Date(now.getTime() - DURABLE_WINDOW_MS);
-  await db
-    .delete(letterVerifyAttempts)
-    .where(
-      and(
-        eq(letterVerifyAttempts.letterId, letterId),
-        lt(letterVerifyAttempts.createdAt, windowStart)
-      )
-    );
+  // ── 5. Durable answer-attempt caps ────────────────────────────────────────
+  //
+  // Preserve the global per-letter cap and add a per actor+letter cap using a
+  // keyed digest of IP + user-agent. The attempt table never stores raw request
+  // metadata.
+  const rateLimit = await recordVerifyAttemptWithinLimits({
+    letterId,
+    actorKey: inviteVerifyActorKey(request),
+  });
 
-  const [{ attemptCount }] = await db
-    .select({ attemptCount: count() })
-    .from(letterVerifyAttempts)
-    .where(eq(letterVerifyAttempts.letterId, letterId));
-
-  if (attemptCount >= DURABLE_MAX_ATTEMPTS) {
+  if (!rateLimit.allowed) {
     return NextResponse.json({ status: "rate_limited" }, { status: 429 });
   }
-
-  await db.insert(letterVerifyAttempts).values({ letterId });
 
   if (!verifySecretAnswer(guess, row.secretAnswerSalt, row.secretAnswerHash)) {
     return NextResponse.json({ status: "incorrect" });

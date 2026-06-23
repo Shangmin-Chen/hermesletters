@@ -36,13 +36,25 @@ export default async function LetterPage({ params, searchParams }: PageProps) {
   const { t: openToken } = await searchParams;
   const letterPath = `/${handle}/${receiver}/${letterParam}`;
 
-  // ── Fetch the letter by URL triple (server-side Drizzle, bypasses RLS) ────
+  // ── Fetch auth/display metadata by URL triple (server-side Drizzle) ───────
   //
-  // SECURITY: We fetch ALL columns here so we can perform the cookie/expiry
-  // check, but we ONLY pass body / images to the render tree in the validated
-  // grace branch. In all other branches those fields never reach the client.
+  // SECURITY: Do not select body/images during metadata lookup. Sensitive
+  // content is loaded only after claim-cookie validation in the grace branch.
   const [row] = await db
-    .select()
+    .select({
+      id: letters.id,
+      senderHandle: letters.senderHandle,
+      receiverName: letters.receiverName,
+      letterName: letters.letterName,
+      status: letters.status,
+      openedAt: letters.openedAt,
+      claimToken: letters.claimToken,
+      expiresAt: letters.expiresAt,
+      savedBy: letters.savedBy,
+      openTokenHash: letters.openTokenHash,
+      secretPrompt: letters.secretPrompt,
+      secretAnswerShape: letters.secretAnswerShape,
+    })
     .from(letters)
     .where(
       and(
@@ -87,9 +99,22 @@ export default async function LetterPage({ params, searchParams }: PageProps) {
 
     if (cookieMatches) {
       // ── Validated grace render — ONLY branch where body/images are loaded ─
-      // Fetch images ordered by position
+      const [contentRow] = await db
+        .select({ body: letters.body })
+        .from(letters)
+        .where(eq(letters.id, row.id))
+        .limit(1);
+
+      // Should not happen (metadata row existed one moment ago), but guard
+      // defensively if the letter is deleted between queries.
+      if (!contentRow) notFound();
+
+      // Fetch images ordered by position.
       const imageRows = await db
-        .select()
+        .select({
+          storagePath: letterImages.storagePath,
+          caption: letterImages.caption,
+        })
         .from(letterImages)
         .where(eq(letterImages.letterId, row.id))
         .orderBy(letterImages.position);
@@ -114,7 +139,7 @@ export default async function LetterPage({ params, searchParams }: PageProps) {
 
       return (
         <UnsealedView
-          body={row.body}
+          body={contentRow.body}
           imageUrls={validUrls}
           imageCaptions={imageCaptions}
           letterId={row.id}

@@ -127,10 +127,11 @@ carried through the whole auth round-trip as a validated `next` (see
 
 **Otherwise it expires.** A Vercel cron (daily at midnight, `0 0 * * *`) hits
 `/api/cron/expire` (bearer-token auth, deny-by-default if `CRON_SECRET` is unset)
-and flips past-due `opened` + `saved_by IS NULL` rows to `expired`. This is
-**housekeeping only** — read-time guards in the page, inbox, and verify route
-already treat any `opened / saved_by NULL / expires_at <= now()` letter as
-expired, so an un-flipped-but-past-due letter still reads as expired.
+and flips past-due `opened` + `saved_by IS NULL` rows to `expired`. It also
+prunes `letter_verify_attempts` rows older than 1 hour and returns only aggregate
+counts. This is **housekeeping only** — read-time guards in the page, inbox, and
+verify route already treat any `opened / saved_by NULL / expires_at <= now()`
+letter as expired, so an un-flipped-but-past-due letter still reads as expired.
 
 ## Direct letters & the phonebook
 
@@ -215,7 +216,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | **profiles** | `id` (= `auth.users.id`), `handle` (unique), `display_name`, `connections_seen_at` | one row per user; `id` FK → `auth.users` `ON DELETE CASCADE`; `connections_seen_at` is the new-connection red-dot cursor |
 | **letters** | `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
 | **letter_images** | `letter_id`, `storage_path`, `position`, `caption` | `letter_id` FK → letters `ON DELETE CASCADE`; `caption` is an optional per-photo caption |
-| **letter_verify_attempts** | `letter_id`, `created_at` | durable rolling-window cap for shared-secret answer attempts; RLS-enabled with no client policies |
+| **letter_verify_attempts** | `letter_id`, `actor_key`, `created_at` | durable rolling-window cap for shared-secret answer attempts; RLS-enabled with no client policies; `actor_key` is a server-keyed digest, not raw request or profile data |
 
 **Migrations** (Drizzle, journal-tracked in [`drizzle/`](../drizzle/)):
 
@@ -229,13 +230,22 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
   (`answer_normalized` / `answer_shape`) and **adds `letter_images.caption`**.
   *Destructive — apply deliberately.*
 - `0005` — direct letters: `letters.receiver_id` (+ `(receiver_id, status)` index),
-  `profiles.connections_seen_at`, and a hand-appended `letters: select received by
-  me` RLS policy (`receiver_id = auth.uid()`).
+  `profiles.connections_seen_at`, and the original direct-recipient RLS policy
+  later removed by `0009`.
 - `0006` — `letters_sender_id_idx` (covers the phonebook sender-side queries).
 - `0007` — tokenized invite links and shared-secret prompts: adds
   `open_token_hash`, `secret_prompt`, `secret_answer_hash`,
   `secret_answer_salt`, `secret_answer_shape`, and recreates
   `letter_verify_attempts` for durable answer-attempt limits.
+- `0008` — saved-letter archive flag (`letters.archived_at`).
+- `0009` — removes legacy public `letters` insert/select policies so full
+  letter rows are server-mediated.
+- `0010` — adds `letter_verify_attempts.actor_key` and an actor-window index for
+  privacy-preserving per-actor answer-attempt limits.
+- `0011` — adds the private `record_letter_verify_attempt` Postgres function,
+  which records attempts under a transaction-scoped per-letter advisory lock.
+- `0012` — revokes that function from Supabase `anon` and `authenticated` RPC
+  roles.
 
 > The storage bucket is private with **no `storage.objects` RLS policies**: it's
 > accessed exclusively server-side via the secret key (which bypasses RLS) and
@@ -261,7 +271,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | `/dashboard/inbox/[id]` | a direct letter: sealed wax-unseal, opened grace, or expired, gated by `receiver_id` |
 | `POST /api/letters/[id]/verify` | token + shared-secret check, atomic claim, claim cookie (invite open) |
 | `POST /api/letters/[id]/save` | atomic keep within grace (invite: auth + cookie + window; direct: addressed receiver + window) |
-| `GET/POST /api/cron/expire` | scheduled expiry flip (bearer-auth) |
+| `GET/POST /api/cron/expire` | scheduled expiry flip + stale verify-attempt prune (bearer-auth) |
 | `/dev/*` | **dev-only** QA harness (404s in production) — see [DEVELOPMENT.md](./DEVELOPMENT.md#qa-harness) |
 
 > Direct-letter opening is a server action (`openDirectLetterAction`), not a route;

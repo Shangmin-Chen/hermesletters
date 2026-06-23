@@ -108,5 +108,8 @@ Hosted on **Vercel** with **Supabase** as the backend.
   `/api/cron/expire` **daily at midnight** (`0 0 * * *`). It authenticates with
   `CRON_SECRET` (bearer token) and **denies by default if the secret is unset** —
   so a missing `CRON_SECRET` fails closed rather than leaving the endpoint open.
+  The job flips past-due opened letters to `expired`, prunes
+  `letter_verify_attempts` rows older than 1 hour, and returns only aggregate
+  counts.
 - Apply migrations against the production database (`npm run db:migrate` with a
   production `DATABASE_URL`) before or during deploy.

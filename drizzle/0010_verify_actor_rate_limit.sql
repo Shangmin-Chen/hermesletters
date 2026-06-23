@@ -1,0 +1,2 @@
+ALTER TABLE "letter_verify_attempts" ADD COLUMN "actor_key" text;--> statement-breakpoint
+CREATE INDEX "letter_verify_attempts_letter_id_actor_key_created_at_idx" ON "letter_verify_attempts" USING btree ("letter_id","actor_key","created_at");
