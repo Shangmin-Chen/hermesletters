@@ -19,7 +19,11 @@ import {
   type CreateLetterState,
 } from "./actions";
 import { slugify } from "@/lib/slugify";
-import type { FieldKey } from "@/lib/letter-validation";
+import {
+  secretPromptOk,
+  secretAnswerOk,
+  type FieldKey,
+} from "@/lib/letter-validation";
 import { compressImage } from "@/lib/image-compression";
 import {
   MAX_IMAGE_BYTES,
@@ -75,7 +79,8 @@ const FIELD_TO_STEP: Record<FieldKey, number> = {
   images: 1,
   receiver: LAST_STEP,
   letter: LAST_STEP,
-  secret: LAST_STEP,
+  // The shared secret now lives on the Seal step (step index 2).
+  secret: 2,
 };
 
 function imageDedupeKey(file: File) {
@@ -111,6 +116,8 @@ interface WaxSealProps {
   disabled: boolean;
   /** Controlled sealed state — allows the parent to drive re-entry. */
   sealed: boolean;
+  /** Message shown (status + aria-label) while disabled, e.g. why sealing is blocked. */
+  disabledHint?: string;
   onSeal: () => void;
   onBreakSeal: () => void;
 }
@@ -126,7 +133,7 @@ const RING_C = 2 * Math.PI * RING_R; // circumference for dash math
 // the seal-press keyframe duration in globals.css (0.45s).
 const STAMP_MS = 450;
 
-export function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps) {
+export function WaxSeal({ disabled, sealed, disabledHint, onSeal, onBreakSeal }: WaxSealProps) {
   const [progress, setProgress] = useState(0); // 0–1 while held
   const [pressing, setPressing] = useState(false); // true while pointer is down
   const [stamping, setStamping] = useState(false); // press-down animation playing
@@ -346,7 +353,7 @@ export function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps)
               type="button"
               aria-label={
                 disabled
-                  ? "Write your letter first to seal it"
+                  ? disabledHint ?? "Write your letter first to seal it"
                   : sealed
                     ? "Letter sealed"
                     : "Press and hold to seal the letter"
@@ -423,7 +430,7 @@ export function WaxSeal({ disabled, sealed, onSeal, onBreakSeal }: WaxSealProps)
           aria-live="polite"
         >
           {disabled
-            ? "Write your letter first"
+            ? disabledHint ?? "Write your letter first"
             : stamping
               ? "Sealing…"
               : progress > 0 && progress < 1
@@ -453,9 +460,21 @@ export function NewLetterForm({
   const [imageError, setImageError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [directSecretEnabled, setDirectSecretEnabled] = useState(false);
+  // Controlled secret fields — needed so the Seal step can gate the wax seal on
+  // a valid shared secret before it can be stamped.
+  const [secretPrompt, setSecretPrompt] = useState("");
+  const [secretAnswer, setSecretAnswer] = useState("");
   // Whether the letter has been sealed. Separate from step so navigating Back
   // into step 2 remembers the prior seal and shows the re-entry affordance.
   const [isSealed, setIsSealed] = useState(false);
+
+  // The secret is required for invite letters, and for direct letters only when
+  // the sender opts in. When required, both prompt and answer must be valid
+  // before the seal can be pressed.
+  const secretRequired = !isDirect || directSecretEnabled;
+  const secretReady =
+    !secretRequired ||
+    (secretPromptOk(secretPrompt) && secretAnswerOk(secretAnswer));
 
   const router = useRouter();
 
@@ -650,8 +669,13 @@ export function NewLetterForm({
   const validateStep = useCallback((s: number) => {
     const form = formRef.current;
     if (!form) return true;
+    // The shared secret lives on the Seal step (step 2); validate it there when
+    // required (invite letters always, direct letters only when opted in).
+    // NOTE: this branch is a defensive fallback — step 2 has no "Next" button.
+    // The wax-seal gesture (gated by `secretReady`) is the real gate; the
+    // validateStep path here is effectively unreachable in normal flow.
     const stepFields =
-      s === LAST_STEP && (!isDirect || directSecretEnabled)
+      s === 2 && (!isDirect || directSecretEnabled)
         ? [...STEPS[s].fields, "secret_prompt", "secret_answer"]
         : [...STEPS[s].fields];
     for (const name of stepFields) {
@@ -948,14 +972,110 @@ export function NewLetterForm({
               Seal your letter
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Press and hold the wax seal to close your letter.
+              {secretRequired
+                ? "Set the shared secret that opens it, then press and hold the wax seal to close your letter."
+                : "Press and hold the wax seal to close your letter."}
             </p>
           </div>
 
-          {/* Ceremonial wax seal — the visual centrepiece of the step */}
+          {/* Direct mode: choose whether the seal needs a shared secret. */}
+          {isDirect && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+              <div>
+                <h3 className="font-serif text-base font-semibold text-ink">
+                  Choose how the seal opens
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  It can open from their inbox, or you can add a shared secret
+                  for a more personal seal.
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-md border border-border bg-background/60 px-3 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="direct_secret_enabled"
+                  value="on"
+                  checked={directSecretEnabled}
+                  onChange={(event) => {
+                    setDirectSecretEnabled(event.target.checked);
+                    // Changing how the seal opens after sealing forces a re-seal,
+                    // so a user can't seal with a secret then remove it and advance.
+                    setIsSealed(false);
+                  }}
+                  disabled={isPending}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-medium text-foreground">
+                    Add a shared secret
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Make them answer a private prompt before the seal opens.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Shared secret — what the seal opens with. Required for invite
+              letters; optional (opt-in) for direct letters. */}
+          {secretRequired && (
+            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
+              <div>
+                <h3 className="font-serif text-base font-semibold text-ink">
+                  Shared secret
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ask something only this person would recognize. They will
+                  answer it before the seal opens.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="secret_prompt">Private prompt</Label>
+                <Input
+                  id="secret_prompt"
+                  name="secret_prompt"
+                  placeholder="e.g. What did we call the blue house?"
+                  value={secretPrompt}
+                  onChange={(event) => setSecretPrompt(event.target.value)}
+                  required
+                  disabled={isPending}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="secret_answer">Answer</Label>
+                <PasswordInput
+                  id="secret_answer"
+                  name="secret_answer"
+                  placeholder="e.g. moonhouse"
+                  value={secretAnswer}
+                  onChange={(event) => setSecretAnswer(event.target.value)}
+                  required
+                  disabled={isPending}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Case-insensitive. Hermes stores a protected hash, not the
+                  answer.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Ceremonial wax seal — gated until the shared secret is ready. */}
           <div className="flex flex-col items-center py-4">
             <WaxSeal
-              disabled={isPending}
+              disabled={isPending || !secretReady}
+              disabledHint={
+                !secretReady
+                  ? "Add your shared secret to seal"
+                  : isPending
+                    ? "Sealing your letter…"
+                    : undefined
+              }
               sealed={isSealed}
               onSeal={handleSeal}
               onBreakSeal={handleBreakSeal}
@@ -1035,80 +1155,6 @@ export function NewLetterForm({
               /{senderHandle}/{receiverSlug || "<receiver>"}/
               {letterSlug || "<letter>"}
             </p>
-          </div>
-        )}
-
-        {isDirect && (
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
-            <div>
-              <h3 className="font-serif text-base font-semibold text-ink">
-                Choose how the seal opens
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                It can open from their inbox, or you can add a shared secret
-                for a more personal seal.
-              </p>
-            </div>
-
-            <label className="flex items-start gap-3 rounded-md border border-border bg-background/60 px-3 py-3 text-sm">
-              <input
-                type="checkbox"
-                name="direct_secret_enabled"
-                value="on"
-                checked={directSecretEnabled}
-                onChange={(event) => setDirectSecretEnabled(event.target.checked)}
-                disabled={isPending}
-                className="mt-1"
-              />
-              <span>
-                <span className="block font-medium text-foreground">
-                  Add a shared secret
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Make them answer a private prompt before the seal opens.
-                </span>
-              </span>
-            </label>
-          </div>
-        )}
-
-        {(!isDirect || directSecretEnabled) && (
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-4">
-            <div>
-              <h3 className="font-serif text-base font-semibold text-ink">
-                Shared secret
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Ask something only this person would recognize. They will answer
-                it before the seal opens.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="secret_prompt">Private prompt</Label>
-              <Input
-                id="secret_prompt"
-                name="secret_prompt"
-                placeholder="e.g. What did we call the blue house?"
-                required
-                disabled={isPending}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="secret_answer">Answer</Label>
-              <PasswordInput
-                id="secret_answer"
-                name="secret_answer"
-                placeholder="e.g. moonhouse"
-                required
-                disabled={isPending}
-                autoComplete="off"
-              />
-              <p className="text-xs text-muted-foreground">
-                Case-insensitive. Hermes stores a protected hash, not the answer.
-              </p>
-            </div>
           </div>
         )}
       </section>

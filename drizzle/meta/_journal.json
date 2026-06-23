@@ -57,6 +57,13 @@
       "when": 1782047215440,
       "tag": "0007_noisy_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782227710302,
+      "tag": "0008_eager_earthquake",
+      "breakpoints": true
     }
   ]
 }
