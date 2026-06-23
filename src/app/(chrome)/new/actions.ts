@@ -31,13 +31,11 @@ import { adminClient } from "@/lib/supabase/admin";
 export type CreateLetterState = { error: string; field?: FieldKey } | null;
 
 // ── Magic-byte image validation ──────────────────────────────────────────────
-// Reads the first 12 bytes of a file and determines the real MIME type.
+// Reads the first 12 bytes of a buffer and determines the real MIME type.
 // Returns the detected mime string, or null if not a recognised image type.
 // Allowed: PNG, JPEG, GIF, WEBP. SVG and everything else is rejected.
-async function detectImageMime(file: File): Promise<string | null> {
-  // We only need the first 12 bytes to cover all signatures.
-  const slice = file.slice(0, 12);
-  const buf = new Uint8Array(await slice.arrayBuffer());
+function detectImageMime(buffer: ArrayBuffer): string | null {
+  const buf = new Uint8Array(buffer, 0, Math.min(12, buffer.byteLength));
 
   // PNG: 89 50 4E 47
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
@@ -122,14 +120,14 @@ async function prepareLetterImages(
   // Read & validate all image bytes/types up front (magic bytes, not file.type).
   const entries: ImageEntry[] = [];
   for (const file of validImages) {
-    const detectedMime = await detectImageMime(file);
+    const buffer = await file.arrayBuffer();
+    const detectedMime = detectImageMime(buffer);
     if (!detectedMime) {
       return {
         error: `File "${file.name}" is not an accepted image type. Only PNG, JPEG, GIF, and WEBP are allowed.`,
         field: "images",
       };
     }
-    const buffer = await file.arrayBuffer();
     entries.push({ file, buffer, detectedMime });
   }
 
