@@ -15,6 +15,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { PhotoGallery } from "@/components/letter/PhotoGallery";
 import { cn } from "@/lib/utils";
 import { zipFilter } from "@/lib/zip-filter";
+import { ArchiveKeptLetterButton } from "../../ArchiveKeptLetterButton";
+import { RestoreKeptLetterButton } from "../../RestoreKeptLetterButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -35,6 +37,7 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
       id: letters.id,
       savedBy: letters.savedBy,
       savedAt: letters.savedAt,
+      archivedAt: letters.archivedAt,
       senderHandle: letters.senderHandle,
       letterName: letters.letterName,
       receiverName: letters.receiverName,
@@ -99,6 +102,8 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
     year: "numeric",
   });
 
+  const isArchived = authRow.archivedAt !== null;
+
   return (
     <main className="min-h-screen p-4 pt-8 sm:p-6 sm:pt-12">
       <div className="mx-auto max-w-xl">
@@ -136,6 +141,12 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
               <h1 className="line-clamp-2 font-serif text-xl font-semibold text-foreground leading-snug mb-2">
                 {authRow.letterName}
               </h1>
+            )}
+
+            {isArchived && (
+              <span className="mb-2 inline-flex items-center rounded-full border border-border bg-background/70 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                Archived
+              </span>
             )}
 
             {/* Attribution caption */}
@@ -186,18 +197,27 @@ export default async function ReceivedLetterPage({ params }: PageProps) {
           {/* ── Footer ──────────────────────────────────────────────────── */}
           <footer className="border-t border-border bg-muted/50 px-6 py-4 text-center">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This letter is kept forever — a permanent part of your story.
+              {isArchived
+                ? "This letter is archived. Restore it to bring it back to your kept list."
+                : "This letter is kept for as long as you want it — yours to revisit or archive."}
             </p>
-            <Link
-              href="/dashboard"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "mt-4 min-h-10 rounded-full bg-background/80"
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "min-h-10 rounded-full bg-background/80"
+                )}
+              >
+                <LayoutDashboard className="size-4" aria-hidden="true" />
+                Back to dashboard
+              </Link>
+              {isArchived ? (
+                <RestoreKeptLetterButton letterId={authRow.id} />
+              ) : (
+                <ArchiveKeptLetterButton letterId={authRow.id} redirectOnDone />
               )}
-            >
-              <LayoutDashboard className="size-4" aria-hidden="true" />
-              Back to dashboard
-            </Link>
+            </div>
           </footer>
 
         </article>

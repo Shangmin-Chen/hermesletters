@@ -3,7 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { hasUnseenConnections } from "@/lib/connections";
 import { db } from "@/db";
 import { letters } from "@/db/schema";
-import { eq, and, isNotNull, desc, inArray } from "drizzle-orm";
+import { eq, and, isNotNull, isNull, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,19 +15,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ArchiveKeptLetterButton } from "./ArchiveKeptLetterButton";
+import { RestoreKeptLetterButton } from "./RestoreKeptLetterButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await requireProfile();
 
-  const [receivedLetters, inbox, showConnectionDot] = await Promise.all([
-    // ── Received mail — metadata only, no body ──────────────────────────────
+  const [receivedLetters, archivedLetters, inbox, showConnectionDot] =
+    await Promise.all([
+    // ── Kept letters — metadata only, no body. Active (non-archived) only ────
     //
     // Guard: saved_by must equal user's id AND saved_at must be non-null.
     // The orphan caveat (drizzle/README.md): if a receiver's profile is deleted,
     // the row gets saved_by = NULL but status = 'saved'. We explicitly require
     // saved_by = profile.id AND saved_at IS NOT NULL so orphaned rows are excluded.
+    // archived_at IS NULL keeps archived letters out of the kept list.
     db
       .select({
         id: letters.id,
@@ -40,10 +44,30 @@ export default async function DashboardPage() {
       .where(
         and(
           eq(letters.savedBy, profile.id),
-          isNotNull(letters.savedAt)
+          isNotNull(letters.savedAt),
+          isNull(letters.archivedAt)
         )
       )
       .orderBy(desc(letters.savedAt)),
+
+    // ── Archived letters — same ownership guard, but archived_at IS NOT NULL ──
+    db
+      .select({
+        id: letters.id,
+        senderHandle: letters.senderHandle,
+        receiverName: letters.receiverName,
+        letterName: letters.letterName,
+        archivedAt: letters.archivedAt,
+      })
+      .from(letters)
+      .where(
+        and(
+          eq(letters.savedBy, profile.id),
+          isNotNull(letters.savedAt),
+          isNotNull(letters.archivedAt)
+        )
+      )
+      .orderBy(desc(letters.archivedAt)),
 
     // ── You've got mail — direct letters addressed to me (metadata only) ────
     db
@@ -220,10 +244,15 @@ export default async function DashboardPage() {
                     : null;
 
                   return (
-                    <li key={letter.id}>
+                    <li
+                      key={letter.id}
+                      className="relative flex items-center gap-3 py-4"
+                    >
+                      {/* Stretched link covers the row; the archive button sits
+                          above it (relative z-10) so it stays clickable. */}
                       <Link
                         href={`/dashboard/received/${letter.id}`}
-                        className="block min-w-0 py-4 transition-colors hover:text-primary"
+                        className="min-w-0 flex-1 transition-colors hover:text-primary after:absolute after:inset-0 after:content-['']"
                       >
                         <p className="truncate font-medium" title={letter.letterName}>
                           {letter.letterName}
@@ -233,6 +262,9 @@ export default async function DashboardPage() {
                           {savedDate ? ` · kept ${savedDate}` : ""}
                         </p>
                       </Link>
+                      <div className="relative z-10 shrink-0">
+                        <ArchiveKeptLetterButton letterId={letter.id} compact />
+                      </div>
                     </li>
                   );
                 })}
@@ -240,6 +272,55 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* ── Archived letters — secondary, only when present ─────────────── */}
+        {archivedLetters.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="font-serif text-xl text-muted-foreground">
+                  Archived
+                </CardTitle>
+                <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
+                  {archivedLetters.length}
+                </span>
+              </div>
+              <CardDescription>
+                Letters you archived. Restore one to move it back to your kept
+                list.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <ul className="divide-y">
+                {archivedLetters.map((letter) => (
+                  <li
+                    key={letter.id}
+                    className="relative flex items-center gap-3 py-4"
+                  >
+                    <Link
+                      href={`/dashboard/received/${letter.id}`}
+                      className="min-w-0 flex-1 transition-colors hover:text-primary after:absolute after:inset-0 after:content-['']"
+                    >
+                      <p
+                        className="truncate font-medium text-muted-foreground"
+                        title={letter.letterName}
+                      >
+                        {letter.letterName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        From @{letter.senderHandle} to {letter.receiverName}
+                      </p>
+                    </Link>
+                    <div className="relative z-10 shrink-0">
+                      <RestoreKeptLetterButton letterId={letter.id} compact />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </main>
   );

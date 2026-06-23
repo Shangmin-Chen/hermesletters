@@ -107,6 +107,13 @@ export const letters = pgTable(
     /** Timestamp when the opener saved the letter to their account. */
     savedAt: timestamp("saved_at", { withTimezone: true }),
 
+    /**
+     * Set when the keeper archives a saved letter. Null = active (shown in the
+     * kept list); non-null = archived (hidden from the kept list but retained
+     * and restorable). Archiving is a reversible flag flip — no data is deleted.
+     */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+
     /** Current lifecycle state of the letter. */
     status: letterStatusEnum("status").notNull().default("unopened"),
 
