@@ -1,6 +1,6 @@
 # Security model
 
-Hermes' Letters's entire value proposition is access control: *a link anyone can
+Hermes Letters' entire value proposition is access control: *a link anyone can
 hold, content only one person can ever take.* This document is the authoritative
 reference for how that's enforced. For the mechanics it protects (lock, claim,
 grace), see [ARCHITECTURE.md](./ARCHITECTURE.md).

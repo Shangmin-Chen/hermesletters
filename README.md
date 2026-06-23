@@ -1,9 +1,9 @@
-# Hermes' Letters
+# Hermes Letters
 
 Write something real. Seal it with a shared secret. Share it once — it opens
 once.
 
-Hermes' Letters is a full-stack Next.js + Supabase app for sending **virtual
+Hermes Letters is a full-stack Next.js + Supabase app for sending **virtual
 letters**. A signed-in sender writes a letter (text + optional images), seals it
 behind a shared-secret prompt, and shares a human-readable link carrying a random
 open token. The recipient needs both the sealed link and the answer — but a

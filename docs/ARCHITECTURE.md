@@ -1,6 +1,6 @@
 # Architecture
 
-How Hermes' Letters works, end to end. For the threat model and the data-access
+How Hermes Letters works, end to end. For the threat model and the data-access
 rules, see [SECURITY.md](./SECURITY.md). For the writing/reading experience, see
 [PRODUCT.md](./PRODUCT.md). To run it locally, see
 [DEVELOPMENT.md](./DEVELOPMENT.md).

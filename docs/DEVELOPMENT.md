@@ -1,6 +1,6 @@
 # Development & operations
 
-Running, building, migrating, and deploying Hermes' Letters. For how the app works,
+Running, building, migrating, and deploying Hermes Letters. For how the app works,
 start with [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Prerequisites

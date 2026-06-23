@@ -1,4 +1,4 @@
-# UX & Navigation Review — Hermes' Letters
+# UX & Navigation Review — Hermes Letters
 
 A review of the live interface and navigation patterns, written for a
 design-focused audience. Issues are ordered by likely impact on the user
