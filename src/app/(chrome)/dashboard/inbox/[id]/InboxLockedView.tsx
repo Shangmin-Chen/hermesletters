@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { WaxUnseal } from "@/components/letter/WaxUnseal";
 import { openDirectLetterAction } from "../actions";
+import { Button } from "@/components/ui/button";
 
 /**
  * Recipient-side unseal for a DIRECT letter. Reuses the wax-unseal ceremony, but
@@ -22,52 +23,63 @@ export function InboxLockedView({
   secretPrompt: string | null;
   answerShape: string | null;
 }) {
+  const needsSecret = Boolean(secretPrompt);
   const [isPending, startTransition] = useTransition();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isVerified, setIsVerified] = useState(!needsSecret);
   const [guess, setGuess] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const needsSecret = Boolean(secretPrompt);
   const totalChars = (answerShape ?? "").replace(/ /g, "").length;
 
-  function handleUnseal() {
+  async function handleVerify(): Promise<boolean> {
     if (needsSecret && !guess.trim()) {
       setErrorMsg("Answer the private prompt first.");
       inputRef.current?.focus();
-      return;
+      return false;
     }
 
-    startTransition(async () => {
-      try {
-        // Both "opened" (we flipped it) and "noop" (a concurrent open won) mean
-        // the letter is now open — refresh to render it.
-        const result = await openDirectLetterAction(letterId, guess);
-        if (result.status === "opened" || result.status === "noop") {
-          router.refresh();
-          return;
-        }
+    setErrorMsg(null);
+    setIsVerifying(true);
 
-        setResetKey((k) => k + 1);
-        if (result.status === "incorrect") {
-          setGuess("");
-          inputRef.current?.focus();
-          setErrorMsg("Not quite — try again.");
-          return;
-        }
-        if (result.status === "rate_limited") {
-          setErrorMsg("Too many attempts. Please wait a moment and try again.");
-          return;
-        }
-        if (result.status === "expired") {
-          setErrorMsg("This letter has slipped away.");
-          return;
-        }
-      } catch {
-        setResetKey((k) => k + 1);
+    try {
+      // Both "opened" (we flipped it) and "noop" (a concurrent open won) mean
+      // the letter is now open — refresh to render it.
+      const result = await openDirectLetterAction(letterId, guess);
+      if (result.status === "opened" || result.status === "noop") {
+        setIsVerifying(false);
+        setIsVerified(true);
+        return true;
+      }
+
+      setResetKey((k) => k + 1);
+      if (result.status === "incorrect") {
+        setGuess("");
+        inputRef.current?.focus();
+        setErrorMsg("Not quite — try again.");
+      } else if (result.status === "rate_limited") {
+        setErrorMsg("Too many attempts. Please wait a moment and try again.");
+      } else if (result.status === "expired") {
+        setErrorMsg("This letter has slipped away.");
+      } else {
         setErrorMsg("Something went wrong. Please try again.");
       }
+      setIsVerifying(false);
+      return false;
+    } catch {
+      setResetKey((k) => k + 1);
+      setErrorMsg("Something went wrong. Please try again.");
+      setIsVerifying(false);
+      return false;
+    }
+  }
+
+  function handleUnseal() {
+    startTransition(() => {
+      router.refresh();
     });
   }
 
@@ -87,9 +99,10 @@ export function InboxLockedView({
         {needsSecret && (
           <form
             className="mb-7 w-full rounded-2xl border border-border/60 bg-card/70 px-5 py-5 text-left shadow-sm"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              handleUnseal();
+              if (isPending || isVerifying || isVerified) return;
+              await handleVerify();
             }}
           >
             <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
@@ -125,30 +138,46 @@ export function InboxLockedView({
             >
               Your answer
             </label>
-            <input
-              ref={inputRef}
-              id={`answer-${letterId}`}
-              value={guess}
-              onChange={(event) => {
-                setGuess(event.target.value);
-                if (errorMsg) setErrorMsg(null);
-              }}
-              disabled={isPending}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={
-                totalChars > 0
-                  ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
-                  : "Answer"
-              }
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-            />
+            <div className="mt-1.5 flex gap-2">
+              <input
+                ref={inputRef}
+                id={`answer-${letterId}`}
+                value={guess}
+                onChange={(event) => {
+                  setGuess(event.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+                disabled={isPending || isVerifying || isVerified}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={
+                  totalChars > 0
+                    ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
+                    : "Answer"
+                }
+                className="h-9 flex-1 rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              />
+              <Button
+                type="submit"
+                disabled={isPending || isVerifying || isVerified || !guess.trim()}
+                className="h-9 px-4 cursor-pointer"
+              >
+                {isVerifying ? "Checking…" : isVerified ? "Correct" : "Verify"}
+              </Button>
+            </div>
           </form>
         )}
 
         <WaxUnseal
           onUnseal={handleUnseal}
-          disabled={isPending}
+          disabled={!isVerified || isPending || isVerifying}
+          disabledHint={
+            isPending || isVerifying
+              ? "Verifying…"
+              : !isVerified
+                ? "Solve the prompt to break the seal"
+                : undefined
+          }
           resetKey={resetKey}
         />
 

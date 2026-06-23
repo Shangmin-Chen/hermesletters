@@ -29,6 +29,8 @@ interface WaxUnsealProps {
   onUnseal: () => void;
   /** When true the gesture and animation are disabled (e.g. while the POST is in flight). */
   disabled?: boolean;
+  /** Optional custom text to show when disabled. */
+  disabledHint?: string;
   /**
    * Called when the POST triggered by onUnseal fails (error or non-ok response).
    * The parent should bump this counter to reset internal unsealing state so the
@@ -52,7 +54,12 @@ interface WaxUnsealProps {
  *
  * Respects prefers-reduced-motion: commits instantly with no animation when set.
  */
-export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsealProps) {
+export function WaxUnseal({
+  onUnseal,
+  disabled = false,
+  disabledHint,
+  resetKey = 0,
+}: WaxUnsealProps) {
   const [progress, setProgress] = useState(0);     // 0–1 while held
   const [pressing, setPressing] = useState(false);  // true while pointer is down
   const [unsealing, setUnsealing] = useState(false); // animation playing
@@ -316,13 +323,15 @@ export function WaxUnseal({ onUnseal, disabled = false, resetKey = 0 }: WaxUnsea
         className="w-56 text-sm text-center text-muted-foreground min-h-[1.25rem]"
         aria-live="polite"
       >
-        {unsealing || disabled
+        {unsealing
           ? "Opening…"
           : progress > 0 && progress < 1
             ? "Keep holding…"
-            : prefersReduced
-              ? "Press to open"
-              : "Press and hold to open"}
+            : disabled
+              ? (disabledHint || "Disabled")
+              : prefersReduced
+                ? "Press to open"
+                : "Press and hold to open"}
       </p>
     </div>
   );

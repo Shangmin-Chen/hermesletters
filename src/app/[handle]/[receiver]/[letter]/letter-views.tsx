@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Envelope } from "@/components/brand/Envelope";
 import { WaxUnseal } from "@/components/letter/WaxUnseal";
+import { Button } from "@/components/ui/button";
 import { RevealOnce } from "./RevealOnce";
 import { KeepButton } from "./KeepButton";
 import { LocalDateTime } from "@/components/LocalDateTime";
@@ -94,6 +95,8 @@ export function LockedView({
   const receiverDisplay = titleCaseName(receiverName);
 
   const [isPending, startTransition] = useTransition();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   const [guess, setGuess] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
@@ -102,92 +105,88 @@ export function LockedView({
 
   const totalChars = answerShape.replace(/ /g, "").length;
 
-  function handleUnseal() {
+  async function handleVerify(): Promise<boolean> {
     if (!guess.trim()) {
       setErrorMsg("Answer the private prompt first.");
       inputRef.current?.focus();
-      return;
+      return false;
     }
 
     setErrorMsg(null);
+    setIsVerifying(true);
 
-    startTransition(async () => {
-      try {
-        const res = await fetch(`/api/letters/${letterId}/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: openToken, guess }),
-        });
+    try {
+      const res = await fetch(`/api/letters/${letterId}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: openToken, guess }),
+      });
 
-        if (res.status === 429) {
-          setResetKey((k) => k + 1);
-          setErrorMsg("Too many attempts. Please wait a moment and try again.");
-          return;
-        }
+      if (res.status === 429) {
+        setResetKey((k) => k + 1);
+        setErrorMsg("Too many attempts. Please wait a moment and try again.");
+        setIsVerifying(false);
+        return false;
+      }
 
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as { status?: string };
-          setResetKey((k) => k + 1);
-          if (data.status === "expired") {
-            setErrorMsg("This letter has slipped away.");
-            return;
-          }
-          if (data.status === "already_opened") {
-            setErrorMsg("Someone has already opened this one.");
-            return;
-          }
-          if (data.status === "incorrect") {
-            setGuess("");
-            inputRef.current?.focus();
-            setErrorMsg("Not quite — try again.");
-            return;
-          }
-          if (data.status === "invalid_link") {
-            setErrorMsg("This letter needs its original sealed link.");
-            return;
-          }
-          setErrorMsg("Something went wrong. Please try again.");
-          return;
-        }
-
-        const data = (await res.json()) as { status: string };
-
-        if (data.status === "unlocked") {
-          // Set the one-shot flag so RevealOnce plays the reveal exactly once.
-          try {
-            sessionStorage.setItem(`just-opened:${letterId}`, "1");
-          } catch {
-            // sessionStorage unavailable — reveal renders its final state.
-          }
-          // Cookie is now set server-side; reload so the Server Component
-          // re-renders the unsealed letter using the claim cookie.
-          router.refresh();
-          return;
-        }
-
-        if (data.status === "already_opened") {
-          setErrorMsg("Someone has already opened this one.");
-          return;
-        }
-
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { status?: string };
+        setResetKey((k) => k + 1);
         if (data.status === "expired") {
           setErrorMsg("This letter has slipped away.");
-          return;
-        }
-
-        if (data.status === "incorrect") {
-          setResetKey((k) => k + 1);
+        } else if (data.status === "already_opened") {
+          setErrorMsg("Someone has already opened this one.");
+        } else if (data.status === "incorrect") {
           setGuess("");
           inputRef.current?.focus();
           setErrorMsg("Not quite — try again.");
-          return;
+        } else if (data.status === "invalid_link") {
+          setErrorMsg("This letter needs its original sealed link.");
+        } else {
+          setErrorMsg("Something went wrong. Please try again.");
         }
+        setIsVerifying(false);
+        return false;
+      }
 
-        setErrorMsg("Something went wrong. Please try again.");
-      } catch {
+      const data = (await res.json()) as { status: string };
+
+      if (data.status === "unlocked") {
+        try {
+          sessionStorage.setItem(`just-opened:${letterId}`, "1");
+        } catch {
+          // sessionStorage unavailable
+        }
+        setIsVerifying(false);
+        setIsVerified(true);
+        return true;
+      }
+
+      if (data.status === "already_opened") {
+        setErrorMsg("Someone has already opened this one.");
+      } else if (data.status === "expired") {
+        setErrorMsg("This letter has slipped away.");
+      } else if (data.status === "incorrect") {
         setResetKey((k) => k + 1);
+        setGuess("");
+        inputRef.current?.focus();
+        setErrorMsg("Not quite — try again.");
+      } else {
         setErrorMsg("Something went wrong. Please try again.");
       }
+      setIsVerifying(false);
+      return false;
+    } catch {
+      setResetKey((k) => k + 1);
+      setErrorMsg("Something went wrong. Please try again.");
+      setIsVerifying(false);
+      return false;
+    }
+  }
+
+  function handleUnseal() {
+    startTransition(() => {
+      router.refresh();
     });
   }
 
@@ -212,9 +211,10 @@ export function LockedView({
         {/* Private prompt — the answer travels with the wax-unseal gesture */}
         <form
           className="mb-7 w-full rounded-2xl border border-border/60 bg-card/70 px-5 py-5 text-left shadow-sm"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            handleUnseal();
+            if (isPending || isVerifying || isVerified) return;
+            await handleVerify();
           }}
         >
           <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
@@ -250,28 +250,48 @@ export function LockedView({
           >
             Your answer
           </label>
-          <input
-            ref={inputRef}
-            id={`answer-${letterId}`}
-            value={guess}
-            onChange={(event) => {
-              setGuess(event.target.value);
-              if (errorMsg) setErrorMsg(null);
-            }}
-            disabled={isPending}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={
-              totalChars > 0
-                ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
-                : "Answer"
-            }
-            className="mt-1 h-9 w-full rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-          />
+          <div className="mt-1.5 flex gap-2">
+            <input
+              ref={inputRef}
+              id={`answer-${letterId}`}
+              value={guess}
+              onChange={(event) => {
+                setGuess(event.target.value);
+                if (errorMsg) setErrorMsg(null);
+              }}
+              disabled={isPending || isVerifying || isVerified}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={
+                totalChars > 0
+                  ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
+                  : "Answer"
+              }
+              className="h-9 flex-1 rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            />
+            <Button
+              type="submit"
+              disabled={isPending || isVerifying || isVerified || !guess.trim()}
+              className="h-9 px-4 cursor-pointer"
+            >
+              {isVerifying ? "Checking…" : isVerified ? "Correct" : "Verify"}
+            </Button>
+          </div>
         </form>
 
         {/* Wax-unseal gesture — the recipient presses and holds to open */}
-        <WaxUnseal onUnseal={handleUnseal} disabled={isPending} resetKey={resetKey} />
+        <WaxUnseal
+          onUnseal={handleUnseal}
+          disabled={!isVerified || isPending || isVerifying}
+          disabledHint={
+            isPending || isVerifying
+              ? "Verifying…"
+              : !isVerified
+                ? "Solve the prompt to break the seal"
+                : undefined
+          }
+          resetKey={resetKey}
+        />
 
         {/* Error feedback */}
         {errorMsg && (
