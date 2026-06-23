@@ -420,7 +420,7 @@ export function UnsealedView({
                 {!isLoggedIn && (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      This letter is also your invitation to Hermes&apos; Letters
+                      This letter is also your invitation to Hermes Letters
                       — keeping it creates your account.
                     </p>
                     <p className="text-sm text-muted-foreground">

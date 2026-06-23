@@ -79,7 +79,7 @@ export default async function Home() {
                 Sign in
               </Link>
               <p className="text-sm text-muted-foreground">
-                Hermes&apos; Letters is invite-only — you join by keeping a letter someone sends you.
+                Hermes Letters is invite-only — you join by keeping a letter someone sends you.
               </p>
             </div>
           )}

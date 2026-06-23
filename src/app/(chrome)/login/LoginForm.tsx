@@ -58,7 +58,7 @@ export function LoginForm({ next }: { next?: string | null }) {
             {pending ? "Logging in..." : "Log in"}
           </Button>
           <p className="text-sm text-muted-foreground text-center">
-            Hermes&apos; Letters is invite-only — you get an account by keeping a
+            Hermes Letters is invite-only — you get an account by keeping a
             letter someone sends you.
           </p>
         </CardFooter>

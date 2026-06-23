@@ -21,7 +21,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 sm:px-6">
         {/* Left: wordmark — wrapped in Next Link for client-side navigation */}
-        <Link href="/" aria-label="Hermes' Letters — home">
+        <Link href="/" aria-label="Hermes Letters — home">
           <Wordmark size="sm" className="text-ink" />
         </Link>
 

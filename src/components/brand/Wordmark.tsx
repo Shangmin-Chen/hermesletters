@@ -38,7 +38,7 @@ export function Wordmark({ size = "md", className = "", href }: WordmarkProps) {
     <Tag
       {...(href ? { href } : {})}
       className={`inline-flex items-center ${s.gap} ${className}`}
-      aria-label="Hermes' Letters"
+      aria-label="Hermes Letters"
     >
       <Envelope
         state="sealed"
@@ -49,7 +49,7 @@ export function Wordmark({ size = "md", className = "", href }: WordmarkProps) {
         className={`font-serif font-semibold leading-none tracking-tight ${s.text}`}
         aria-hidden="true"
       >
-        Hermes&apos; Letters
+        Hermes Letters
       </span>
     </Tag>
   );

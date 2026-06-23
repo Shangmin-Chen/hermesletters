@@ -75,7 +75,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       <main className="flex flex-1 flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm rounded-xl border border-border bg-card px-6 py-7 text-center shadow-sm animate-rise-in">
           <h1 className="font-serif text-xl font-semibold text-foreground">
-            Hermes&apos; Letters is invite-only.
+            Hermes Letters is invite-only.
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             You can create an account after opening a letter sent to you.

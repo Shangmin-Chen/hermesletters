@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Hermes' Letters",
-    template: "%s · Hermes' Letters",
+    default: "Hermes Letters",
+    template: "%s · Hermes Letters",
   },
   description: "Write something real. Seal it with a link that opens once.",
 };
