@@ -94,9 +94,10 @@ export function LockedView({
   // receiverName is a slug ("maya-lin"); title-case it for the greeting.
   const receiverDisplay = titleCaseName(receiverName);
 
+  const needsSecret = Boolean(secretPrompt);
   const [isPending, startTransition] = useTransition();
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(!needsSecret);
   const [guess, setGuess] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
@@ -106,7 +107,7 @@ export function LockedView({
   const totalChars = answerShape.replace(/ /g, "").length;
 
   async function handleVerify(): Promise<boolean> {
-    if (!guess.trim()) {
+    if (needsSecret && !guess.trim()) {
       setErrorMsg("Answer the private prompt first.");
       inputRef.current?.focus();
       return false;
@@ -185,7 +186,11 @@ export function LockedView({
   }
 
   function handleUnseal() {
-    startTransition(() => {
+    startTransition(async () => {
+      if (!needsSecret) {
+        const success = await handleVerify();
+        if (!success) return;
+      }
       router.refresh();
     });
   }
@@ -209,75 +214,77 @@ export function LockedView({
         </div>
 
         {/* Private prompt — the answer travels with the wax-unseal gesture */}
-        <form
-          className="mb-7 w-full rounded-2xl border border-border/60 bg-card/70 px-5 py-5 text-left shadow-sm"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            if (isPending || isVerifying || isVerified) return;
-            await handleVerify();
-          }}
-        >
-          <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
-            Shared secret
-          </p>
-          <p className="mt-2 font-serif text-lg leading-snug text-foreground">
-            {secretPrompt}
-          </p>
-
-          {answerShape && (
-            <div
-              aria-hidden="true"
-              className="mt-4 flex flex-wrap gap-x-3 gap-y-1 select-none"
-            >
-              {answerShape.split(" ").map((word, wordIndex) => (
-                <span key={wordIndex} className="flex gap-px">
-                  {word.split("").map((ch, charIndex) =>
-                    ch === "_" ? (
-                      <span
-                        key={charIndex}
-                        className="inline-block w-4 border-b-2 border-current opacity-60"
-                      />
-                    ) : null
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <label
-            htmlFor={`answer-${letterId}`}
-            className="mt-4 block text-sm font-medium text-foreground"
+        {needsSecret && (
+          <form
+            className="mb-7 w-full rounded-2xl border border-border/60 bg-card/70 px-5 py-5 text-left shadow-sm"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (isPending || isVerifying || isVerified) return;
+              await handleVerify();
+            }}
           >
-            Your answer
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              ref={inputRef}
-              id={`answer-${letterId}`}
-              value={guess}
-              onChange={(event) => {
-                setGuess(event.target.value);
-                if (errorMsg) setErrorMsg(null);
-              }}
-              disabled={isPending || isVerifying || isVerified}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={
-                totalChars > 0
-                  ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
-                  : "Answer"
-              }
-              className="h-9 flex-1 rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-            />
-            <Button
-              type="submit"
-              disabled={isPending || isVerifying || isVerified || !guess.trim()}
-              className="h-9 px-4 cursor-pointer"
+            <p className="text-xs uppercase tracking-[0.18em] font-medium text-wax">
+              Shared secret
+            </p>
+            <p className="mt-2 font-serif text-lg leading-snug text-foreground">
+              {secretPrompt}
+            </p>
+
+            {answerShape && (
+              <div
+                aria-hidden="true"
+                className="mt-4 flex flex-wrap gap-x-3 gap-y-1 select-none"
+              >
+                {answerShape.split(" ").map((word, wordIndex) => (
+                  <span key={wordIndex} className="flex gap-px">
+                    {word.split("").map((ch, charIndex) =>
+                      ch === "_" ? (
+                        <span
+                          key={charIndex}
+                          className="inline-block w-4 border-b-2 border-current opacity-60"
+                        />
+                      ) : null
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <label
+              htmlFor={`answer-${letterId}`}
+              className="mt-4 block text-sm font-medium text-foreground"
             >
-              {isVerifying ? "Checking…" : isVerified ? "Correct" : "Verify"}
-            </Button>
-          </div>
-        </form>
+              Your answer
+            </label>
+            <div className="mt-1.5 flex gap-2">
+              <input
+                ref={inputRef}
+                id={`answer-${letterId}`}
+                value={guess}
+                onChange={(event) => {
+                  setGuess(event.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+                disabled={isPending || isVerifying || isVerified}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={
+                  totalChars > 0
+                    ? `${totalChars} character${totalChars === 1 ? "" : "s"}`
+                    : "Answer"
+                }
+                className="h-9 flex-1 rounded-md border border-input bg-background/70 px-3 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              />
+              <Button
+                type="submit"
+                disabled={isPending || isVerifying || isVerified || !guess.trim()}
+                className="h-9 px-4 cursor-pointer"
+              >
+                {isVerifying ? "Checking…" : isVerified ? "Correct" : "Verify"}
+              </Button>
+            </div>
+          </form>
+        )}
 
         {/* Wax-unseal gesture — the recipient presses and holds to open */}
         <WaxUnseal

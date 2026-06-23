@@ -78,7 +78,11 @@ export function InboxLockedView({
   }
 
   function handleUnseal() {
-    startTransition(() => {
+    startTransition(async () => {
+      if (!needsSecret) {
+        const success = await handleVerify();
+        if (!success) return;
+      }
       router.refresh();
     });
   }
