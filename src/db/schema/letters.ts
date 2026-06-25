@@ -22,6 +22,13 @@ export const letters = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    /**
+     * Stable opaque public lookup key for v2 APIs and future public links.
+     * Unlike the human-readable URL triple, this does not collide when names
+     * slugify to the same value.
+     */
+    publicId: text("public_id").notNull(),
+
     /** FK → profiles.id; cascade-delete removes letter when sender is deleted. */
     senderId: uuid("sender_id")
       .notNull()
@@ -131,6 +138,7 @@ export const letters = pgTable(
      * is taken" message without parsing freeform error strings.
      */
     unique("letters_url_unique").on(t.senderHandle, t.receiverName, t.letterName),
+    unique("letters_public_id_unique").on(t.publicId),
     index("letters_saved_by_idx").on(t.savedBy),
     /** Phonebook Leg B + sender-side queries. */
     index("letters_sender_id_idx").on(t.senderId),

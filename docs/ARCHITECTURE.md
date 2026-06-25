@@ -47,6 +47,13 @@ handle is the first segment, so a
 [reserved-handle blocklist](../src/lib/reserved-handles.ts) prevents handles from
 shadowing real routes (`login`, `dashboard`, `api`, `new`, …).
 
+New v2 API surfaces do **not** use that human-readable triple as the resource
+identity. Each letter also has an immutable opaque `public_id`; future public
+links can use `/l/{public_id}/{optional-slug}?t=...` so slugs are presentation
+only and cannot collide. V2 still writes the same `claim:{letter_uuid}` cookie
+as the legacy invite flow because the grace-window page render and invite-only
+signup gate both consume that existing browser claim namespace.
+
 ---
 
 ## The three mechanics
@@ -214,7 +221,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | Table | Key columns | Notes |
 |---|---|---|
 | **profiles** | `id` (= `auth.users.id`), `handle` (unique), `display_name`, `connections_seen_at` | one row per user; `id` FK → `auth.users` `ON DELETE CASCADE`; `connections_seen_at` is the new-connection red-dot cursor |
-| **letters** | `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
+| **letters** | `id`, `public_id`, `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique opaque `public_id`; unique legacy triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
 | **letter_images** | `letter_id`, `storage_path`, `position`, `caption` | `letter_id` FK → letters `ON DELETE CASCADE`; `caption` is an optional per-photo caption |
 | **letter_verify_attempts** | `letter_id`, `actor_key`, `created_at` | durable rolling-window cap for shared-secret answer attempts; RLS-enabled with no client policies; `actor_key` is a server-keyed digest, not raw request or profile data |
 
@@ -246,6 +253,8 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
   which records attempts under a transaction-scoped per-letter advisory lock.
 - `0012` — revokes that function from Supabase `anon` and `authenticated` RPC
   roles.
+- `0013` — adds `letters.public_id`, backfills existing rows from UUIDs, then
+  enforces non-null + unique for v2 API lookup.
 
 > The storage bucket is private with **no `storage.objects` RLS policies**: it's
 > accessed exclusively server-side via the secret key (which bypasses RLS) and
@@ -272,6 +281,10 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | `POST /api/letters/[id]/verify` | token + shared-secret check, atomic claim, claim cookie (invite open) |
 | `POST /api/letters/[id]/save` | atomic keep within grace (invite: auth + cookie + window; direct: addressed receiver + window) |
 | `GET/POST /api/cron/expire` | scheduled expiry flip + stale verify-attempt prune (bearer-auth) |
+| `POST /api/v2/letters/[publicId]/open-claims` | v2 invite open by opaque `public_id`, with structured `{ data }` / `{ error }` envelopes |
+| `POST /api/v2/letters/[publicId]/saves` | v2 keep by opaque `public_id`, preserving the same claim/identity/window guards |
+| `GET /api/v2/handles/check` | versioned alias for handle availability |
+| `GET/POST /api/v2/cron/expire` | versioned alias for the expiry job |
 | `/dev/*` | **dev-only** QA harness (404s in production) — see [DEVELOPMENT.md](./DEVELOPMENT.md#qa-harness) |
 
 > Direct-letter opening is a server action (`openDirectLetterAction`), not a route;
