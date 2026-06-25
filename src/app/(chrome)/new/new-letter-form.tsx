@@ -18,7 +18,6 @@ import {
   sendDirectLetterAction,
   type CreateLetterState,
 } from "./actions";
-import { slugify } from "@/lib/slugify";
 import {
   secretPromptOk,
   secretAnswerOk,
@@ -45,7 +44,6 @@ import { Envelope } from "@/components/brand/Envelope";
 import { SealMark } from "@/components/brand/SealMark";
 
 interface NewLetterFormProps {
-  senderHandle: string;
   /**
    * When set, the form is in DIRECT mode: it sends to this existing connection
    * (server-validated) instead of an invite. The free-text receiver field and
@@ -445,7 +443,6 @@ export function WaxSeal({ disabled, sealed, disabledHint, onSeal, onBreakSeal }:
 // ── Main form ───────────────────────────────────────────────────────────────
 
 export function NewLetterForm({
-  senderHandle,
   directRecipient,
 }: NewLetterFormProps) {
   const isDirect = Boolean(directRecipient);
@@ -483,8 +480,6 @@ export function NewLetterForm({
   // Ref for the receiver-name field so we can focus it after sealing.
   const receiverNameRef = useRef<HTMLInputElement>(null);
 
-  const receiverSlug = slugify(receiverName);
-  const letterSlug = slugify(letterName);
 
   // Write a list of previews back to the underlying file input so the form
   // submits exactly what's shown.
@@ -1113,7 +1108,7 @@ export function NewLetterForm({
           </div>
         ) : (
           <div className="space-y-1.5">
-            <Label htmlFor="receiver_name">Receiver name</Label>
+            <Label htmlFor="receiver_name">Recipient name</Label>
             <Input
               ref={receiverNameRef}
               id="receiver_name"
@@ -1125,13 +1120,13 @@ export function NewLetterForm({
               disabled={isPending}
             />
             <p className="text-xs text-muted-foreground">
-              Who is this letter for? This becomes part of the URL.
+              Who is this letter for?
             </p>
           </div>
         )}
 
         <div className="space-y-1.5">
-          <Label htmlFor="letter_name">Letter name</Label>
+          <Label htmlFor="letter_name">Letter title</Label>
           <Input
             id="letter_name"
             name="letter_name"
@@ -1142,7 +1137,7 @@ export function NewLetterForm({
             disabled={isPending}
           />
           <p className="text-xs text-muted-foreground">
-            A short name for this letter. This also becomes part of the URL.
+            A title for this letter.
           </p>
         </div>
 
@@ -1152,8 +1147,7 @@ export function NewLetterForm({
               Your letter URL will be:
             </p>
             <p id="url-preview" className="break-all font-mono text-sm">
-              /{senderHandle}/{receiverSlug || "<receiver>"}/
-              {letterSlug || "<letter>"}
+              /l/ltr_...
             </p>
           </div>
         )}

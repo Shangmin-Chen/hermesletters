@@ -6,23 +6,19 @@ import { renderLetterShared } from "@/app/letter-page-shared";
 
 interface PageProps {
   params: Promise<{
-    handle: string;
-    receiver: string;
-    letter: string;
+    publicId: string;
   }>;
   searchParams: Promise<{ t?: string }>;
 }
 
-export default async function LetterPage({ params, searchParams }: PageProps) {
-  const { handle, receiver, letter: letterParam } = await params;
+export default async function PublicLetterPage({ params, searchParams }: PageProps) {
+  const { publicId } = await params;
   const { t: openToken } = await searchParams;
 
   return renderLetterShared(
     {
-      kind: "legacy",
-      handle,
-      receiver,
-      letterName: letterParam,
+      kind: "publicId",
+      publicId,
     },
     openToken
   );

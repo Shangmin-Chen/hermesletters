@@ -1,13 +1,22 @@
 /**
- * Parse a public invite letter path of the form
- * `/{handle}/{receiver}/{letterName}` into its three URL components.
+ * Parse a public invite letter path.
+ * Supports legacy `/{handle}/{receiver}/{letterName}` and v2 `/l/{publicId}`.
  */
-export function parseLetterPath(
-  path: string
-): { handle: string; receiver: string; letterName: string } | null {
+export type ParsedLetterPath =
+  | { kind: "v2"; publicId: string }
+  | { kind: "legacy"; handle: string; receiver: string; letterName: string };
+
+export function parseLetterPath(path: string): ParsedLetterPath | null {
   const parts = path.split("/").filter(Boolean);
-  if (parts.length !== 3) return null;
-  const [handle, receiver, letterName] = parts;
-  if (!handle || !receiver || !letterName) return null;
-  return { handle, receiver, letterName };
+  if (parts.length === 2 && parts[0] === "l") {
+    const publicId = parts[1];
+    if (!publicId) return null;
+    return { kind: "v2", publicId };
+  }
+  if (parts.length === 3) {
+    const [handle, receiver, letterName] = parts;
+    if (!handle || !receiver || !letterName) return null;
+    return { kind: "legacy", handle, receiver, letterName };
+  }
+  return null;
 }
