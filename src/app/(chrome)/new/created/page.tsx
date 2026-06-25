@@ -8,6 +8,7 @@ interface CreatedPageProps {
     handle?: string;
     receiver?: string;
     letter?: string;
+    publicId?: string;
     token?: string;
   }>;
 }
@@ -16,13 +17,13 @@ export default async function LetterCreatedPage({ searchParams }: CreatedPagePro
   await requireProfile();
 
   const params = await searchParams;
-  const { handle, receiver, letter, token } = params;
+  const { handle, receiver, letter, publicId, token } = params;
 
-  if (!handle || !receiver || !letter || !token) {
+  if (!token || (!publicId && (!handle || !receiver || !letter))) {
     redirect("/new");
   }
 
-  const letterPath = `/${handle}/${receiver}/${letter}`;
+  const letterPath = publicId ? `/l/${publicId}` : `/${handle}/${receiver}/${letter}`;
 
   let origin: string;
   if (process.env.NEXT_PUBLIC_SITE_URL) {

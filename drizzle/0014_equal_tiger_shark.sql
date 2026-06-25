@@ -1,0 +1,1 @@
+ALTER TABLE "letters" DROP CONSTRAINT "letters_url_unique";

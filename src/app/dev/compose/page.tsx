@@ -21,7 +21,7 @@ export default function DevCompose() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NewLetterForm senderHandle="demo" />
+          <NewLetterForm />
         </CardContent>
       </Card>
     </main>

@@ -294,11 +294,12 @@ export async function createLetterAction(
   // Catch Postgres unique-violation (code 23505, constraint letters_url_unique)
   // and return a friendly error before uploading anything.
   const letterId = crypto.randomUUID();
+  const publicId = createLetterPublicId();
 
   try {
     await db.insert(letters).values({
       id: letterId,
-      publicId: createLetterPublicId(),
+      publicId,
       senderId,
       senderHandle,
       receiverName,
@@ -338,9 +339,7 @@ export async function createLetterAction(
 
   // ── Step 6: Redirect to confirmation page ─────────────────────────────────
   const params = new URLSearchParams({
-    handle: senderHandle,
-    receiver: receiverName,
-    letter: letterName,
+    publicId,
     token: openToken,
   });
   redirect(`/new/created?${params.toString()}`);

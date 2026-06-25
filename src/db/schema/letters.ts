@@ -129,15 +129,6 @@ export const letters = pgTable(
       .defaultNow(),
   },
   (t) => [
-    /**
-     * Named unique constraint on the URL triple so that
-     * (senderHandle, receiverName, letterName) resolves to exactly one letter
-     * and duplicate creation is rejected at the DB level.
-     * The stable constraint name "letters_url_unique" lets Phase 4 server
-     * actions catch this specific violation and surface a "that letter name
-     * is taken" message without parsing freeform error strings.
-     */
-    unique("letters_url_unique").on(t.senderHandle, t.receiverName, t.letterName),
     unique("letters_public_id_unique").on(t.publicId),
     index("letters_saved_by_idx").on(t.savedBy),
     /** Phonebook Leg B + sender-side queries. */

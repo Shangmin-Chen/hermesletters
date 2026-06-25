@@ -47,7 +47,14 @@ export async function signUpAction(
     };
   }
 
-  const { handle, receiver, letterName } = letterCoords;
+  const whereClause =
+    letterCoords.kind === "v2"
+      ? eq(letters.publicId, letterCoords.publicId)
+      : and(
+          eq(letters.senderHandle, letterCoords.handle),
+          eq(letters.receiverName, letterCoords.receiver),
+          eq(letters.letterName, letterCoords.letterName)
+        );
 
   const [letterRow] = await db
     .select({
@@ -59,13 +66,7 @@ export async function signUpAction(
       savedBy: letters.savedBy,
     })
     .from(letters)
-    .where(
-      and(
-        eq(letters.senderHandle, handle),
-        eq(letters.receiverName, receiver),
-        eq(letters.letterName, letterName)
-      )
-    )
+    .where(whereClause)
     .limit(1);
 
   if (!letterRow || !letterRow.claimToken) {

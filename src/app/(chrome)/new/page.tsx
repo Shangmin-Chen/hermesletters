@@ -56,7 +56,6 @@ export default async function NewLetterPage({
       </div>
       <div className="w-full max-w-2xl mt-6">
         <NewLetterForm
-          senderHandle={profile.handle as string}
           directRecipient={directRecipient ?? undefined}
         />
       </div>
