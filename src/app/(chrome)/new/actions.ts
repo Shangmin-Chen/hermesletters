@@ -14,6 +14,7 @@ import {
 import { zipFilter } from "@/lib/zip-filter";
 import { areConnected } from "@/lib/connections";
 import { createOpenToken, createSecretAnswer } from "@/lib/letter-security";
+import { createLetterPublicId } from "@/lib/letter-public-id";
 import {
   MAX_IMAGE_BYTES,
   MAX_LETTER_IMAGES,
@@ -297,6 +298,7 @@ export async function createLetterAction(
   try {
     await db.insert(letters).values({
       id: letterId,
+      publicId: createLetterPublicId(),
       senderId,
       senderHandle,
       receiverName,
@@ -438,6 +440,7 @@ export async function sendDirectLetterAction(
   try {
     await db.insert(letters).values({
       id: letterId,
+      publicId: createLetterPublicId(),
       senderId,
       senderHandle,
       receiverId: recipient.id,

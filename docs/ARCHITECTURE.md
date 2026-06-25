@@ -47,6 +47,13 @@ handle is the first segment, so a
 [reserved-handle blocklist](../src/lib/reserved-handles.ts) prevents handles from
 shadowing real routes (`login`, `dashboard`, `api`, `new`, …).
 
+New v2 API surfaces do **not** use that human-readable triple as the resource
+identity. Each letter also has an immutable opaque `public_id`; future public
+links can use `/l/{public_id}/{optional-slug}?t=...` so slugs are presentation
+only and cannot collide. V2 still writes the same `claim:{letter_uuid}` cookie
+as the legacy invite flow because the grace-window page render and invite-only
+signup gate both consume that existing browser claim namespace.
+
 ---
 
 ## The three mechanics
@@ -214,7 +221,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | Table | Key columns | Notes |
 |---|---|---|
 | **profiles** | `id` (= `auth.users.id`), `handle` (unique), `display_name`, `connections_seen_at` | one row per user; `id` FK → `auth.users` `ON DELETE CASCADE`; `connections_seen_at` is the new-connection red-dot cursor |
-| **letters** | `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
+| **letters** | `id`, `public_id`, `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique opaque `public_id`; unique legacy triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
 | **letter_images** | `letter_id`, `storage_path`, `position`, `caption` | `letter_id` FK → letters `ON DELETE CASCADE`; `caption` is an optional per-photo caption |
 | **letter_verify_attempts** | `letter_id`, `actor_key`, `created_at` | durable rolling-window cap for shared-secret answer attempts; RLS-enabled with no client policies; `actor_key` is a server-keyed digest, not raw request or profile data |
 
@@ -246,6 +253,8 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
   which records attempts under a transaction-scoped per-letter advisory lock.
 - `0012` — revokes that function from Supabase `anon` and `authenticated` RPC
   roles.
+- `0013` — adds `letters.public_id`, backfills existing rows from UUIDs, then
+  enforces non-null + unique for v2 API lookup.
 
 > The storage bucket is private with **no `storage.objects` RLS policies**: it's
 > accessed exclusively server-side via the secret key (which bypasses RLS) and
@@ -272,10 +281,41 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | `POST /api/letters/[id]/verify` | token + shared-secret check, atomic claim, claim cookie (invite open) |
 | `POST /api/letters/[id]/save` | atomic keep within grace (invite: auth + cookie + window; direct: addressed receiver + window) |
 | `GET/POST /api/cron/expire` | scheduled expiry flip + stale verify-attempt prune (bearer-auth) |
+| `POST /api/v2/letters/[publicId]/open-claims` | v2 invite open by opaque `public_id`, with structured `{ data }` / `{ error }` envelopes |
+| `POST /api/v2/letters/[publicId]/saves` | v2 keep by opaque `public_id`, preserving the same claim/identity/window guards |
+| `GET /api/v2/handles/check` | versioned alias for handle availability |
+| `GET/POST /api/v2/cron/expire` | versioned alias for the expiry job |
 | `/dev/*` | **dev-only** QA harness (404s in production) — see [DEVELOPMENT.md](./DEVELOPMENT.md#qa-harness) |
 
 > Direct-letter opening is a server action (`openDirectLetterAction`), not a route;
 > `sendDirectLetterAction` and `dismissConnectionsBadge` are likewise server actions.
+
+### API versioning (v1 → v2)
+
+The original `/api/letters/[id]/*` routes are **v1** and stay in place for the
+app's own UI and any already-shared links. **v2** (`/api/v2/*`) is the cleaner
+public surface and the one to build against going forward:
+
+- **Opaque identity.** v2 addresses letters by the immutable `public_id`
+  (`ltr_…`), never by raw UUID or the slug triple — so links don't leak
+  enumerable database ids and can't collide when names slugify the same.
+- **Structured envelopes.** Every response is `{ data }` on success or
+  `{ error: { code, message } }` on failure, with REST-aligned status codes
+  (`201` claimed/saved, `404/409/410/422/429` mapped from the service result) —
+  versus v1's flat `{ status }` strings.
+- **One implementation, two skins.** Both versions are thin route handlers over
+  the same server-only service layer (`server/letters/`): `claimInviteLetter`
+  and `saveLetterForProfile` own the atomic claim, shared-secret check, rate
+  limit, ownership gate, and grace window. A `LetterLookup` discriminated union
+  lets a route resolve by `id` (v1) or `public_id` (v2) against identical guards,
+  so the two surfaces can never drift in their security behavior.
+- **Shared claim cookie.** v2 deliberately still writes the v1
+  `claim:{letter_uuid}` cookie (keyed by internal id, not `public_id`) because
+  the grace-window page render and the invite-only signup gate read that same
+  browser namespace — see [SECURITY.md](./SECURITY.md#api-versioning-v2).
+
+`handles/check` and `cron/expire` are exposed under v2 as straight re-exports of
+their v1 handlers — versioned aliases with no behavioral change.
 
 ## Project layout
 
@@ -285,7 +325,8 @@ src/
     (chrome)/new/              the compose flow and confirmation pages
     [handle]/[receiver]/[letter]/
                                the letter page and its views (LockedView owns the unlock POST)
-    api/letters/[id]/          verify + save route handlers
+    api/letters/[id]/          legacy (v1) verify + save route handlers
+    api/v2/                    versioned API: letters/[publicId]/{open-claims,saves}, handles/check, cron/expire
     api/cron/expire/           scheduled expiry job
     dashboard/                 compose entry + inbox + kept letters
     dashboard/inbox/[id]/      direct-letter view (+ openDirectLetterAction)
@@ -295,6 +336,8 @@ src/
     globals.css                design tokens, theming, animation keyframes
   components/                  brand marks, shadcn ui primitives, letter/ (WaxUnseal, PhotoGallery, …)
   db/                          Drizzle client + schema
-  lib/                         auth, connections, slugify, safe-path, zip-filter, letter-validation, supabase clients
+  server/letters/             shared open/save service layer behind v1 + v2 routes
+                               (claim-invite-letter, save-letter, letter-lookup, claim-cookie)
+  lib/                         auth, connections, slugify, safe-path, zip-filter, letter-validation, letter-public-id, supabase clients
 drizzle/                       generated SQL migrations
 ```
