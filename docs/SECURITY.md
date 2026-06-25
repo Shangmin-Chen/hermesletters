@@ -60,9 +60,13 @@ does not push `body` into a client payload.
 
 Invite unlocks require both factors: the random open token from the URL and the
 shared-secret answer. The verify route
-([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) hashes the
-submitted token and compares it with `letters.open_token_hash` before checking
-the answer. A bad or missing token gets no answer oracle.
+([`verify/route.ts`](../src/app/api/letters/[id]/verify/route.ts)) delegates to
+the shared `claimInviteLetter`
+([`claim-invite-letter.ts`](../src/server/letters/claim-invite-letter.ts))
+service, which hashes the submitted token and compares it with
+`letters.open_token_hash` before checking the answer. A bad or missing token gets
+no answer oracle. The v2 `open-claims` route calls the **same** service, so both
+API versions enforce token-before-answer identically.
 
 Answer attempts are capped durably with `letter_verify_attempts`: there is a
 global per-letter rolling limit and a per actor+letter rolling limit. The
@@ -106,6 +110,31 @@ control is **identity-based, not bearer-link-based**:
   `receiver_id === session user` ownership check (404 otherwise); the inbox list
   is metadata-only. Direct inbox reads are intentionally server-mediated instead
   of backed by a full-row public `letters` SELECT policy.
+
+## API versioning (v2)
+
+The `/api/v2/*` routes add a public surface but **no new trust boundary**. Every
+sensitive decision still runs in the same server-only service layer
+([`server/letters/`](../src/server/letters/)) behind `import "server-only"`:
+
+- **No widened exposure.** v2 `open-claims` and `saves` call the identical
+  `claimInviteLetter` / `saveLetterForProfile` functions as v1, so the atomic
+  open-once claim, token-before-answer check, durable attempt caps, ownership
+  gate, and grace window are byte-for-byte the same. The routes only translate
+  request/response shape — they never re-implement a guard. `open-claims`
+  responses never carry `body`; success is `{ data: { status } }` only.
+- **Opaque lookup, internal-id cookie.** v2 resolves letters by the immutable
+  `public_id` so raw UUIDs and the slug triple stay out of public URLs, but it
+  still writes the claim cookie keyed by the **internal** letter id
+  (`claim:{letter_uuid}`). That is deliberate: the grace-window page render and
+  the invite-only signup gate both read that internal-id namespace, so keying v2
+  cookies by `public_id` would silently lock a v2-opened letter out of those
+  flows. `public_id` is a lookup handle, not a capability — the `claim_token`
+  cookie value remains the only bearer secret.
+- **Non-enumerating errors.** Malformed `public_id`s are rejected (`400`) before
+  any DB or auth work; `saves` collapses missing / expired / already-saved /
+  unauthorized into a single generic `409`, matching v1's "reveal nothing"
+  posture.
 
 ## Redirect safety
 

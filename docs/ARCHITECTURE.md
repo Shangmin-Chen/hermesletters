@@ -290,6 +290,33 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 > Direct-letter opening is a server action (`openDirectLetterAction`), not a route;
 > `sendDirectLetterAction` and `dismissConnectionsBadge` are likewise server actions.
 
+### API versioning (v1 → v2)
+
+The original `/api/letters/[id]/*` routes are **v1** and stay in place for the
+app's own UI and any already-shared links. **v2** (`/api/v2/*`) is the cleaner
+public surface and the one to build against going forward:
+
+- **Opaque identity.** v2 addresses letters by the immutable `public_id`
+  (`ltr_…`), never by raw UUID or the slug triple — so links don't leak
+  enumerable database ids and can't collide when names slugify the same.
+- **Structured envelopes.** Every response is `{ data }` on success or
+  `{ error: { code, message } }` on failure, with REST-aligned status codes
+  (`201` claimed/saved, `404/409/410/422/429` mapped from the service result) —
+  versus v1's flat `{ status }` strings.
+- **One implementation, two skins.** Both versions are thin route handlers over
+  the same server-only service layer (`server/letters/`): `claimInviteLetter`
+  and `saveLetterForProfile` own the atomic claim, shared-secret check, rate
+  limit, ownership gate, and grace window. A `LetterLookup` discriminated union
+  lets a route resolve by `id` (v1) or `public_id` (v2) against identical guards,
+  so the two surfaces can never drift in their security behavior.
+- **Shared claim cookie.** v2 deliberately still writes the v1
+  `claim:{letter_uuid}` cookie (keyed by internal id, not `public_id`) because
+  the grace-window page render and the invite-only signup gate read that same
+  browser namespace — see [SECURITY.md](./SECURITY.md#api-versioning-v2).
+
+`handles/check` and `cron/expire` are exposed under v2 as straight re-exports of
+their v1 handlers — versioned aliases with no behavioral change.
+
 ## Project layout
 
 ```
@@ -298,7 +325,8 @@ src/
     (chrome)/new/              the compose flow and confirmation pages
     [handle]/[receiver]/[letter]/
                                the letter page and its views (LockedView owns the unlock POST)
-    api/letters/[id]/          verify + save route handlers
+    api/letters/[id]/          legacy (v1) verify + save route handlers
+    api/v2/                    versioned API: letters/[publicId]/{open-claims,saves}, handles/check, cron/expire
     api/cron/expire/           scheduled expiry job
     dashboard/                 compose entry + inbox + kept letters
     dashboard/inbox/[id]/      direct-letter view (+ openDirectLetterAction)
@@ -308,6 +336,8 @@ src/
     globals.css                design tokens, theming, animation keyframes
   components/                  brand marks, shadcn ui primitives, letter/ (WaxUnseal, PhotoGallery, …)
   db/                          Drizzle client + schema
-  lib/                         auth, connections, slugify, safe-path, zip-filter, letter-validation, supabase clients
+  server/letters/             shared open/save service layer behind v1 + v2 routes
+                               (claim-invite-letter, save-letter, letter-lookup, claim-cookie)
+  lib/                         auth, connections, slugify, safe-path, zip-filter, letter-validation, letter-public-id, supabase clients
 drizzle/                       generated SQL migrations
 ```
