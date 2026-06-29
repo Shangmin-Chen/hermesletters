@@ -15,7 +15,7 @@ only one person can ever take.** Three mechanics make that work:
 3. a **24-hour grace window** you either convert to ownership or lose.
 
 A signed-in sender writes a letter (text + optional images), seals it with an
-intimate shared-secret prompt, and shares a human-readable URL that carries a
+intimate shared-secret prompt, and shares an opaque invite URL that carries a
 random open token. The recipient needs both the sealed link and the answer, then
 presses and holds the wax seal to unseal it — but a letter **opens only once**.
 After the first successful unlock it belongs to the opener (if they sign in
@@ -36,23 +36,25 @@ every letter is **fire-and-forget and burns on open**.
 ## URL scheme
 
 ```
-site.com/{sender-handle}/{receiver-name}/{letter-name}?t={open-token}
+site.com/l/{public_id}?t={open-token}
 ```
 
-All three segments are slugified; the triple is unique
-(`letters_url_unique`). A collision on create is rejected with "that letter name
-is taken" — no silent suffixing. Invite links also carry an unguessable random
-open token in the query string; only its hash is stored in the database. The
-handle is the first segment, so a
+New invite links are keyed by `letters.public_id`, an immutable opaque id with
+the `ltr_` prefix. Invite links also carry an unguessable random open token in
+the query string; only its hash is stored in the database.
+
+Legacy invite links of the form
+`site.com/{sender-handle}/{receiver-name}/{letter-name}?t={open-token}` still
+render for already-shared links. All three legacy segments are slugified, but
+they are no longer the canonical identity and are not globally unique. Because
+the sender handle is the first legacy segment, a
 [reserved-handle blocklist](../src/lib/reserved-handles.ts) prevents handles from
 shadowing real routes (`login`, `dashboard`, `api`, `new`, …).
 
-New v2 API surfaces do **not** use that human-readable triple as the resource
-identity. Each letter also has an immutable opaque `public_id`; future public
-links can use `/l/{public_id}/{optional-slug}?t=...` so slugs are presentation
-only and cannot collide. V2 still writes the same `claim:{letter_uuid}` cookie
-as the legacy invite flow because the grace-window page render and invite-only
-signup gate both consume that existing browser claim namespace.
+The v2 API surfaces use the same opaque identity. V2 still writes the same
+`claim:{letter_uuid}` cookie as the legacy invite flow because the grace-window
+page render and invite-only signup gate both consume that existing browser claim
+namespace.
 
 ---
 
@@ -205,8 +207,8 @@ straight to an existing connection, identified by `letters.receiver_id` being se
   `claim:{letterId}` cookie. No claim, no account. See
   [SECURITY.md](./SECURITY.md#invite-only-signup).
 - **Onboarding** (`/onboarding`): on first sign-in the user picks a **stable
-  handle** that lives in every letter URL and can't be changed. It's slugified,
-  validated against the reserved blocklist, and the unique-violation
+  handle** used for profile identity and legacy letter URLs. It can't be
+  changed. It's slugified, validated against the reserved blocklist, and the unique-violation
   (`profiles_handle_unique`) is caught as "handle taken."
 - **The sender keeps nothing:** there's deliberately no `letter_events` table and
   no "sent" list. The dashboard has **compose**, **You've got mail** (direct-letter
@@ -221,7 +223,7 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | Table | Key columns | Notes |
 |---|---|---|
 | **profiles** | `id` (= `auth.users.id`), `handle` (unique), `display_name`, `connections_seen_at` | one row per user; `id` FK → `auth.users` `ON DELETE CASCADE`; `connections_seen_at` is the new-connection red-dot cursor |
-| **letters** | `id`, `public_id`, `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique opaque `public_id`; unique legacy triple `letters_url_unique`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
+| **letters** | `id`, `public_id`, `sender_id`, `sender_handle`, `receiver_name`, `letter_name`, `receiver_id`, `body`, `open_token_hash`, `secret_prompt`, `secret_answer_hash`, `secret_answer_salt`, `secret_answer_shape`, `opened_at`, `claim_token`, `expires_at`, `saved_by`, `saved_at`, `status` | `status` enum `unopened\|opened\|saved\|expired`; unique opaque `public_id`; indexes on `saved_by`, `sender_id`, `(receiver_id, status)`, and the non-unique legacy URL triple. `receiver_id` (FK → profiles, cascade) set only for **direct letters** |
 | **letter_images** | `letter_id`, `storage_path`, `position`, `caption` | `letter_id` FK → letters `ON DELETE CASCADE`; `caption` is an optional per-photo caption |
 | **letter_verify_attempts** | `letter_id`, `actor_key`, `created_at` | durable rolling-window cap for shared-secret answer attempts; RLS-enabled with no client policies; `actor_key` is a server-keyed digest, not raw request or profile data |
 
@@ -255,6 +257,10 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
   roles.
 - `0013` — adds `letters.public_id`, backfills existing rows from UUIDs, then
   enforces non-null + unique for v2 API lookup.
+- `0014` — drops the legacy `(sender_handle, receiver_name, letter_name)`
+  uniqueness constraint now that public invites are keyed by `public_id`.
+- `0015` — adds a non-unique legacy URL triple index so compatibility lookups
+  remain indexed after `0014`.
 
 > The storage bucket is private with **no `storage.objects` RLS policies**: it's
 > accessed exclusively server-side via the secret key (which bypasses RLS) and
@@ -275,7 +281,8 @@ Schema lives in [`src/db/schema/`](../src/db/schema/).
 | `/phonebook` | connections (read-model); each row links to `/new?to=<handle>` |
 | `/new` → `/new/created` | the compose ritual + tokenized share-link confirmation (invite) |
 | `/new?to=<handle>` → `/new/sent` | direct-letter compose (locked recipient, optional shared secret) + a "sent" confirmation |
-| `/{handle}/{receiver}/{letter}` | the invite letter page: locked / unsealed-grace / sealed / expired |
+| `/l/[publicId]` | the canonical invite letter page: locked / unsealed-grace / sealed / expired |
+| `/{handle}/{receiver}/{letter}` | legacy invite letter page compatibility path |
 | `/dashboard/received/[id]` | permanent, ownership-checked view of any saved letter |
 | `/dashboard/inbox/[id]` | a direct letter: sealed wax-unseal, opened grace, or expired, gated by `receiver_id` |
 | `POST /api/letters/[id]/verify` | token + shared-secret check, atomic claim, claim cookie (invite open) |
@@ -323,8 +330,10 @@ their v1 handlers — versioned aliases with no behavioral change.
 src/
   app/
     (chrome)/new/              the compose flow and confirmation pages
+    l/[publicId]/              canonical public invite page
     [handle]/[receiver]/[letter]/
-                               the letter page and its views (LockedView owns the unlock POST)
+                               legacy public invite page compatibility path
+    letter-page-shared.tsx     shared invite-page renderer for public_id and legacy lookups
     api/letters/[id]/          legacy (v1) verify + save route handlers
     api/v2/                    versioned API: letters/[publicId]/{open-claims,saves}, handles/check, cron/expire
     api/cron/expire/           scheduled expiry job

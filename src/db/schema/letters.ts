@@ -23,9 +23,9 @@ export const letters = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
 
     /**
-     * Stable opaque public lookup key for v2 APIs and future public links.
-     * Unlike the human-readable URL triple, this does not collide when names
-     * slugify to the same value.
+     * Stable opaque public lookup key for v2 APIs and canonical public links.
+     * Unlike the legacy URL triple, this does not collide when names slugify
+     * to the same value.
      */
     publicId: text("public_id").notNull(),
 
@@ -35,12 +35,12 @@ export const letters = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
 
     /**
-     * Denormalized copy of profiles.handle for efficient URL-path lookups
-     * without a join.
+     * Denormalized copy of profiles.handle for legacy URL-path lookups without
+     * a join.
      */
     senderHandle: text("sender_handle").notNull(),
 
-    /** Slugified recipient name (second URL segment). */
+    /** Slugified recipient label; also the second legacy URL segment. */
     receiverName: text("receiver_name").notNull(),
 
     /**
@@ -55,7 +55,7 @@ export const letters = pgTable(
       onDelete: "cascade",
     }),
 
-    /** Slugified letter name (third URL segment). */
+    /** Slugified letter title; also the third legacy URL segment. */
     letterName: text("letter_name").notNull(),
 
     /** Full plain-text body of the letter. Never sent to unauthenticated clients. */
@@ -135,6 +135,12 @@ export const letters = pgTable(
     index("letters_sender_id_idx").on(t.senderId),
     /** Inbox query: a recipient's direct letters by status. */
     index("letters_receiver_id_status_idx").on(t.receiverId, t.status),
+    /** Legacy invite URL compatibility lookups after the triple stopped being unique. */
+    index("letters_legacy_url_idx").on(
+      t.senderHandle,
+      t.receiverName,
+      t.letterName
+    ),
   ]
 );
 

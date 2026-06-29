@@ -19,6 +19,9 @@ paste each file into the Supabase SQL editor in the numbered order below.
 | 11 | `0010_verify_actor_rate_limit.sql` | drizzle-kit | Adds nullable `letter_verify_attempts.actor_key` plus `(letter_id, actor_key, created_at)` index for privacy-preserving per-actor answer-attempt windows. |
 | 12 | `0011_atomic_verify_attempts.sql` | hand-authored (custom, journal-tracked) | Adds the private `record_letter_verify_attempt` Postgres function. The app calls it to prune/count/insert attempts under a transaction-scoped per-letter advisory lock, preventing concurrent guesses from bypassing the cap. |
 | 13 | `0012_revoke_verify_attempt_rpc_roles.sql` | hand-authored (custom, journal-tracked) | Revokes `record_letter_verify_attempt` execution from Supabase `anon` and `authenticated` roles so the function cannot be called as a browser RPC endpoint. |
+| 14 | `0013_careful_christian_walker.sql` | drizzle-kit | Adds `letters.public_id`, backfills existing rows from UUID-derived values, sets `public_id` non-null, and adds the unique `letters_public_id_unique` constraint for opaque public lookup. |
+| 15 | `0014_equal_tiger_shark.sql` | drizzle-kit | Drops the legacy `letters_url_unique` constraint on `(sender_handle, receiver_name, letter_name)` because new public invite links are keyed by unique `public_id`. |
+| 16 | `0015_early_earthquake.sql` | drizzle-kit | Adds a non-unique `letters_legacy_url_idx` index for legacy invite URL compatibility lookups after the triple stopped being unique. |
 
 ## RLS policy summary
 

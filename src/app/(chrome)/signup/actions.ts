@@ -1,14 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { eq, and } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth";
 import { isSafeLocalPath } from "@/lib/safe-path";
-import { parseLetterPath } from "@/lib/letter-path";
-import { db } from "@/db";
-import { letters } from "@/db/schema";
+import { hasSignupClaimForLetterPath } from "@/server/letters/signup-claim";
 
 type ActionState = { error?: string } | null;
 
@@ -26,79 +22,7 @@ export async function signUpAction(
     return { error: "Email and password are required." };
   }
 
-  // ── Recipient-only gate ────────────────────────────────────────────────────
-  //
-  // Signup is only allowed for people who have unlocked a letter. We verify
-  // this by:
-  //   1. Parsing `next` into its (handle, receiver, letterName) URL triple.
-  //   2. Looking up the letter row in the DB (Drizzle, no RLS).
-  //   3. Checking that the browser holds a `claim:{letterId}` cookie whose value
-  //      equals `letters.claim_token` — the same proof the save route trusts.
-  //
-  // If any step fails, we reject with a friendly message rather than leaking
-  // which specific check failed.
-
-  const letterCoords = next ? parseLetterPath(next) : null;
-
-  if (!letterCoords) {
-    return {
-      error:
-        "You can only sign up after you've received a letter.",
-    };
-  }
-
-  const whereClause =
-    letterCoords.kind === "v2"
-      ? eq(letters.publicId, letterCoords.publicId)
-      : and(
-          eq(letters.senderHandle, letterCoords.handle),
-          eq(letters.receiverName, letterCoords.receiver),
-          eq(letters.letterName, letterCoords.letterName)
-        );
-
-  const [letterRow] = await db
-    .select({
-      id: letters.id,
-      claimToken: letters.claimToken,
-      status: letters.status,
-      openedAt: letters.openedAt,
-      expiresAt: letters.expiresAt,
-      savedBy: letters.savedBy,
-    })
-    .from(letters)
-    .where(whereClause)
-    .limit(1);
-
-  if (!letterRow || !letterRow.claimToken) {
-    return {
-      error:
-        "You can only sign up after you've received a letter.",
-    };
-  }
-
-  // Read the httpOnly claim cookie — same contract as the save route.
-  const cookieStore = await cookies();
-  const cookieName = `claim:${letterRow.id}`;
-  const cookieValue = cookieStore.get(cookieName)?.value ?? null;
-
-  // Mirror save/route.ts's full predicate set exactly:
-  //   - status = 'opened'          → letter was claimed but not yet saved
-  //   - opened_at IS NOT NULL      → confirm it was actually opened
-  //   - claim_token = <cookieValue> → only the holder of the grace cookie
-  //   - expires_at > now()         → still within the 24h grace window
-  //   - saved_by IS NULL           → not yet saved
-  // Any failure returns the same gate message — do NOT reveal which check failed.
-  const now = new Date();
-  const claimValid =
-    cookieValue !== null &&
-    cookieValue === letterRow.claimToken &&
-    letterRow.status === "opened" &&
-    letterRow.openedAt !== null &&
-    letterRow.expiresAt !== null &&
-    letterRow.expiresAt > now &&
-    letterRow.savedBy === null;
-
-  if (!claimValid) {
+  if (!next || !(await hasSignupClaimForLetterPath(next))) {
     return {
       error:
         "You can only sign up after you've received a letter.",

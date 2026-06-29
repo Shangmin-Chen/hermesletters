@@ -26,10 +26,44 @@ import { letters, letterImages, profiles } from "@/db/schema";
 import { adminClient } from "@/lib/supabase/admin";
 
 // The return type gains an optional `field` discriminator so the client
-// orchestrator can map an error back to the compose step that owns it (e.g. the
-// duplicate-name 23505 collision, which is only detectable server-side, routes
-// to the address step). The FormData INPUT contract is unchanged.
+// orchestrator can map an error back to the compose step that owns it. The
+// FormData INPUT contract is unchanged.
 export type CreateLetterState = { error: string; field?: FieldKey } | null;
+
+const PUBLIC_ID_INSERT_ATTEMPTS = 3;
+
+type LetterInsertValues = typeof letters.$inferInsert;
+type PgError = { code?: string; constraint_name?: string; constraint?: string };
+
+function isConstraintViolation(err: unknown, constraint: string): boolean {
+  const pgErr = err as PgError;
+  return (
+    pgErr?.code === "23505" &&
+    (pgErr.constraint_name === constraint || pgErr.constraint === constraint)
+  );
+}
+
+async function insertLetterWithFreshPublicId(
+  values: Omit<LetterInsertValues, "publicId">
+): Promise<string> {
+  let lastCollision: unknown = null;
+
+  for (let attempt = 0; attempt < PUBLIC_ID_INSERT_ATTEMPTS; attempt++) {
+    const publicId = createLetterPublicId();
+    try {
+      await db.insert(letters).values({ ...values, publicId });
+      return publicId;
+    } catch (err: unknown) {
+      if (isConstraintViolation(err, "letters_public_id_unique")) {
+        lastCollision = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastCollision ?? new Error("Unable to allocate a letter public id.");
+}
 
 // ── Magic-byte image validation ──────────────────────────────────────────────
 // Reads the first 12 bytes of a buffer and determines the real MIME type.
@@ -220,8 +254,7 @@ async function uploadLetterImages(
  *   2. Validate + slugify text inputs; reject empties early.
  *   3. Prepare images — validate all image bytes/types by magic bytes (no db
  *      writes, no uploads). Reject invalid types before touching the DB.
- *   4. INSERT letters row — catch unique-violation (letters_url_unique) and
- *      return a friendly error WITHOUT uploading anything.
+ *   4. INSERT letters row with an opaque public_id before any upload.
  *   5. Upload images (service-role client, private bucket) at {letterId}/{file}.
  *   6. INSERT letter_images rows.
  *   7. On image-phase failure: delete uploaded storage objects + letter row
@@ -291,47 +324,21 @@ export async function createLetterAction(
   if ("error" in prepared) return prepared;
 
   // ── Step 4: Insert the letters row ────────────────────────────────────────
-  // Catch Postgres unique-violation (code 23505, constraint letters_url_unique)
-  // and return a friendly error before uploading anything.
   const letterId = crypto.randomUUID();
-  const publicId = createLetterPublicId();
-
-  try {
-    await db.insert(letters).values({
-      id: letterId,
-      publicId,
-      senderId,
-      senderHandle,
-      receiverName,
-      letterName,
-      body: rawBody.trim(),
-      openTokenHash,
-      secretPrompt: rawSecretPrompt.trim(),
-      secretAnswerHash,
-      secretAnswerSalt,
-      secretAnswerShape,
-      status: "unopened",
-    });
-  } catch (err: unknown) {
-    // postgres.js exposes constraint_name; pg/node-postgres exposes constraint.
-    // Accept either to be robust against driver differences.
-    const pgErr = err as { code?: string; constraint_name?: string; constraint?: string };
-    if (
-      pgErr?.code === "23505" &&
-      (pgErr?.constraint_name === "letters_url_unique" ||
-        pgErr?.constraint === "letters_url_unique")
-    ) {
-      // The collision is on the (handle, receiver, letter) URL triple; the
-      // letter name is the field the user can most easily change, so route the
-      // bounce to the address step where that field lives.
-      return {
-        error: "That letter name is already taken — choose another.",
-        field: "letter",
-      };
-    }
-    // Re-throw unexpected errors so they surface as 500s.
-    throw err;
-  }
+  const publicId = await insertLetterWithFreshPublicId({
+    id: letterId,
+    senderId,
+    senderHandle,
+    receiverName,
+    letterName,
+    body: rawBody.trim(),
+    openTokenHash,
+    secretPrompt: rawSecretPrompt.trim(),
+    secretAnswerHash,
+    secretAnswerSalt,
+    secretAnswerShape,
+    status: "unopened",
+  });
 
   // ── Step 5: Upload images + insert letter_images rows (cleans up on failure)
   const imgErr = await uploadLetterImages(letterId, prepared.entries, prepared.captions);
@@ -357,7 +364,7 @@ export async function createLetterAction(
  *   2. Validate text inputs.
  *   3. Resolve recipient + self-send guard + connection check.
  *   4. Prepare images (validate magic bytes — NO db writes, NO uploads).
- *   5. INSERT letters row (with 23505 handling).
+ *   5. INSERT letters row with an opaque public_id.
  *   6. Upload images + insert letter_images rows (best-effort cleanup on failure).
  *   7. Redirect to /new/sent.
  */
@@ -436,39 +443,20 @@ export async function sendDirectLetterAction(
 
   // ── Step 5: Insert the direct letter (receiver_id set) ─────────────────────
   const letterId = crypto.randomUUID();
-  try {
-    await db.insert(letters).values({
-      id: letterId,
-      publicId: createLetterPublicId(),
-      senderId,
-      senderHandle,
-      receiverId: recipient.id,
-      // receiver_name = recipient handle keeps letters_url_unique meaningful and
-      // gives the inbox a label.
-      receiverName: recipient.handle,
-      letterName,
-      body: rawBody.trim(),
-      secretPrompt: secretEnabled ? rawSecretPrompt.trim() : null,
-      secretAnswerHash: directSecret?.answerHash ?? null,
-      secretAnswerSalt: directSecret?.answerSalt ?? null,
-      secretAnswerShape: directSecret?.answerShape ?? null,
-      status: "unopened",
-    });
-  } catch (err: unknown) {
-    const pgErr = err as { code?: string; constraint_name?: string; constraint?: string };
-    if (
-      pgErr?.code === "23505" &&
-      (pgErr?.constraint_name === "letters_url_unique" ||
-        pgErr?.constraint === "letters_url_unique")
-    ) {
-      return {
-        error:
-          "You've already sent them a letter with that name — choose another.",
-        field: "letter",
-      };
-    }
-    throw err;
-  }
+  await insertLetterWithFreshPublicId({
+    id: letterId,
+    senderId,
+    senderHandle,
+    receiverId: recipient.id,
+    receiverName: recipient.handle,
+    letterName,
+    body: rawBody.trim(),
+    secretPrompt: secretEnabled ? rawSecretPrompt.trim() : null,
+    secretAnswerHash: directSecret?.answerHash ?? null,
+    secretAnswerSalt: directSecret?.answerSalt ?? null,
+    secretAnswerShape: directSecret?.answerShape ?? null,
+    status: "unopened",
+  });
 
   // ── Step 6: Upload images + insert letter_images rows (cleans up on failure)
   const imgErr = await uploadLetterImages(letterId, prepared.entries, prepared.captions);

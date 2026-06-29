@@ -106,6 +106,13 @@
       "when": 1782415771573,
       "tag": "0014_equal_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1782747037627,
+      "tag": "0015_early_earthquake",
+      "breakpoints": true
     }
   ]
 }

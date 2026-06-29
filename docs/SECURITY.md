@@ -33,10 +33,17 @@ Two data paths, deliberately separated:
 
 For invite links, `body` and signed image URLs enter the React render tree in
 exactly **one** place: the cookie-validated grace branch of
-[`page.tsx`](../src/app/[handle]/[receiver]/[letter]/page.tsx), where
+[`letter-page-shared.tsx`](../src/app/letter-page-shared.tsx), where
 `cookie.claim:{id} === row.claim_token` **and** the window is still open. Every
 other path (unopened, opened-without-cookie, expired, saved-by-someone-else)
 renders a sealed view that never receives the content.
+
+Both public invite routes call that shared renderer: the canonical
+`/l/{public_id}` path looks up by opaque public id, and the legacy
+`/{handle}/{receiver}/{letter}` path remains a compatibility wrapper for
+already-shared links. When a legacy link carries an open token, lookup also
+matches the token hash so duplicate legacy slugs cannot shadow the intended
+letter.
 
 For direct letters, the equivalent content branch lives in
 [`dashboard/inbox/[id]/page.tsx`](<../src/app/(chrome)/dashboard/inbox/[id]/page.tsx>):
@@ -86,7 +93,8 @@ There is no open sign-up. An account can be created **only by keeping a letter y
 received**, so the only people who get in are people someone chose to write to.
 `signUpAction` ([`signup/actions.ts`](../src/app/(chrome)/signup/actions.ts))
 enforces this server-side *before* creating any account: it parses the `next`
-letter path, looks up the letter, and requires the request to carry the
+letter path (`/l/{public_id}` or the legacy triple), resolves it to the claimed
+letter, and requires the request to carry the
 `claim:{letterId}` cookie matching that letter's `claim_token` **and** the same
 predicates the keep flow trusts (`status='opened'`, `opened_at` set, `expires_at >
 now()`, `saved_by IS NULL`). No valid claim → a generic refusal, no account. The
@@ -163,9 +171,9 @@ pages/actions, and the onboarding page/action. A raw `next` is never trusted.
   addresses) return a single generic "Something went wrong. Please try again."
   message — no path reveals whether the address is in use. Sign-out uses a 303
   redirect so the POST lands on `/` as a GET.
-- **Slug collisions** on create are caught via the Postgres unique-violation and
-  returned (not thrown) as "that letter name is taken," so the sender's draft
-  survives in the mounted form.
+- **Public IDs** are generated server-side, unique, and opaque. The compose
+  action inserts the letter before uploading images and retries only if the
+  database reports a `letters_public_id_unique` collision.
 
 ## API keys
 
