@@ -6,6 +6,7 @@ import {
   hashOpenToken,
   verifySecretAnswer,
 } from "@/lib/letter-security";
+import { parseLetterPath } from "@/lib/letter-path";
 import { isSafeLocalPath } from "@/lib/safe-path";
 import { isValidHandle, slugify } from "@/lib/slugify";
 
@@ -102,6 +103,27 @@ describe("isSafeLocalPath", () => {
     ["/foo\u0000bar", false],
   ])("returns %s for %j", (path, expected) => {
     expect(isSafeLocalPath(path)).toBe(expected);
+  });
+});
+
+describe("parseLetterPath", () => {
+  it.each([
+    ["/l/ltr_abcdefghijklmnopqrstuvwx", { kind: "v2", publicId: "ltr_abcdefghijklmnopqrstuvwx" }],
+    [
+      "/l/ltr_abcdefghijklmnopqrstuvwx?t=open-token#keep",
+      { kind: "v2", publicId: "ltr_abcdefghijklmnopqrstuvwx" },
+    ],
+    [
+      "/alice/bob/birthday?t=open-token",
+      {
+        kind: "legacy",
+        handle: "alice",
+        receiver: "bob",
+        letterName: "birthday",
+      },
+    ],
+  ])("parses %j", (path, expected) => {
+    expect(parseLetterPath(path)).toEqual(expected);
   });
 });
 

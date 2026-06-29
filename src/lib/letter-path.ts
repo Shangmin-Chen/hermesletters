@@ -7,7 +7,8 @@ export type ParsedLetterPath =
   | { kind: "legacy"; handle: string; receiver: string; letterName: string };
 
 export function parseLetterPath(path: string): ParsedLetterPath | null {
-  const parts = path.split("/").filter(Boolean);
+  const pathname = path.split(/[?#]/, 1)[0];
+  const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 2 && parts[0] === "l") {
     const publicId = parts[1];
     if (!publicId) return null;

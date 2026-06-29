@@ -16,14 +16,21 @@ export type LetterPageLookup =
   | { kind: "legacy"; handle: string; receiver: string; letterName: string };
 
 export async function renderLetterShared(lookup: LetterPageLookup, openToken?: string) {
-  const whereClause =
-    lookup.kind === "publicId"
-      ? eq(letters.publicId, lookup.publicId)
-      : and(
-          eq(letters.senderHandle, lookup.handle),
-          eq(letters.receiverName, lookup.receiver),
-          eq(letters.letterName, lookup.letterName)
-        );
+  const whereClause = (() => {
+    if (lookup.kind === "publicId") {
+      return eq(letters.publicId, lookup.publicId);
+    }
+
+    const legacySlugClause = and(
+      eq(letters.senderHandle, lookup.handle),
+      eq(letters.receiverName, lookup.receiver),
+      eq(letters.letterName, lookup.letterName)
+    );
+
+    return typeof openToken === "string" && openToken.length > 0
+      ? and(legacySlugClause, eq(letters.openTokenHash, hashOpenToken(openToken)))
+      : legacySlugClause;
+  })();
 
   const letterPath =
     lookup.kind === "publicId"

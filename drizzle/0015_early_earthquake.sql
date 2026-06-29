@@ -1,0 +1,1 @@
+CREATE INDEX "letters_legacy_url_idx" ON "letters" USING btree ("sender_handle","receiver_name","letter_name");
